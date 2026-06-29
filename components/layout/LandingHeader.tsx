@@ -1,0 +1,53 @@
+import Link from "next/link";
+
+export default function LandingHeader() {
+  return (
+    <header className="w-full top-0 sticky z-50 bg-white/90 backdrop-blur-md border-b border-slate-100 shadow-sm">
+      <nav className="flex justify-between items-center max-w-7xl mx-auto px-6 md:px-12 py-4">
+        <Link href="/" className="font-headline-lg text-2xl font-bold text-[#A03B1E] flex items-center gap-2">
+          CAPractice
+        </Link>
+        <div className="hidden md:flex gap-8 items-center">
+          <Link
+            className="text-sm font-semibold text-[#A03B1E] border-b-2 border-[#A03B1E] pb-1 hover:text-[#8a2f15] transition-colors cursor-pointer"
+            href="/"
+          >
+            Home
+          </Link>
+          <Link
+            className="text-sm font-medium text-slate-500 hover:text-[#A03B1E] transition-colors cursor-pointer"
+            href="#features"
+          >
+            Features
+          </Link>
+          <Link
+            className="text-sm font-medium text-slate-500 hover:text-[#A03B1E] transition-colors cursor-pointer"
+            href="#pricing"
+          >
+            Pricing
+          </Link>
+          <Link
+            className="text-sm font-medium text-slate-500 hover:text-[#A03B1E] transition-colors cursor-pointer"
+            href="#about"
+          >
+            About
+          </Link>
+        </div>
+        <div className="flex items-center gap-6">
+          <Link
+            href="/login"
+            className="text-sm font-semibold text-[#A03B1E] hover:text-[#8a2f15] transition-colors"
+          >
+            Login
+          </Link>
+          <Link
+            href="/login"
+            className="bg-[#FF5722] text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-[#e64a19] shadow-md shadow-[#FF5722]/20 transition-all transform hover:-translate-y-0.5"
+          >
+            Get Started
+          </Link>
+        </div>
+      </nav>
+    </header>
+  );
+}
