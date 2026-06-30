@@ -27,7 +27,7 @@ export async function exportAssignmentsCSV() {
   });
 
   const headers = "ID,Task,Client,Assignee,Status,Priority,Deadline\n";
-  const rows = assignments.map(a => 
+  const rows = assignments.map((a: any) => 
     `${a.id},"${a.title}","${a.client.name}","${a.user?.name || "Unassigned"}","${a.status}","${a.priority}","${a.deadline?.toISOString() || ""}"`
   ).join("\n");
 
