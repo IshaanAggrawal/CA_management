@@ -1,6 +1,11 @@
-import Image from "next/image";
+import { UserButton } from "@clerk/nextjs";
+import { currentUser } from "@clerk/nextjs/server";
 
-export default function DashboardHeader() {
+export default async function DashboardHeader() {
+  const user = await currentUser();
+  const userName = user ? `${user.firstName || ""} ${user.lastName || ""}`.trim() : "Welcome";
+  const userRole = user?.publicMetadata?.role as string || "Staff";
+
   return (
     <header className="h-16 sticky top-0 z-40 bg-surface dark:bg-surface-dim border-b border-outline-variant dark:border-outline flex items-center justify-between px-6 w-full ml-[260px] max-w-[calc(1440px-260px)]">
       <div className="flex items-center gap-4 flex-1 max-w-xl">
@@ -29,16 +34,10 @@ export default function DashboardHeader() {
         </button>
         <div className="flex items-center gap-3 pl-2">
           <div className="text-right hidden sm:block">
-            <p className="font-label-md text-primary">Aditya Sharma</p>
-            <p className="text-[10px] text-on-surface-variant">Senior Partner</p>
+            <p className="font-label-md text-primary">{userName}</p>
+            <p className="text-[10px] text-on-surface-variant">{userRole}</p>
           </div>
-          <Image 
-            alt="Aditya Sharma" 
-            className="w-9 h-9 rounded-full object-cover ring-2 ring-surface-container-high" 
-            src="/images/img-13.jpg"
-            width={36}
-            height={36}
-          />
+          <UserButton />
         </div>
       </div>
     </header>

@@ -1,0 +1,55 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+}
+
+model User {
+  id        String       @id // Maps to Clerk User ID
+  email     String       @unique
+  name      String
+  role      String       @default("STAFF") // ADMIN or STAFF
+  createdAt DateTime     @default(now())
+  
+  assignments Assignment[]
+}
+
+model Client {
+  id        String       @id @default(cuid())
+  name      String
+  pan       String?
+  gstin     String?
+  email     String?
+  phone     String?
+  status    String       @default("ACTIVE") // ACTIVE, INACTIVE
+  createdAt DateTime     @default(now())
+
+  assignments Assignment[]
+  invoices    Invoice[]
+}
+
+model Assignment {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  status      String    @default("TODO") // TODO, IN_PROGRESS, REVIEW, COMPLETED
+  priority    String    @default("MEDIUM") // LOW, MEDIUM, HIGH
+  deadline    DateTime?
+  
+  clientId    String
+  client      Client    @relation(fields: [clientId], references: [id])
+  userId      String?
+  user        User?     @relation(fields: [userId], references: [id])
+}
+
+model Invoice {
+  id          String   @id @default(cuid())
+  amount      Float
+  status      String   @default("PENDING") // PENDING, PAID, OVERDUE
+  dueDate     DateTime
+  
+  clientId    String
+  client      Client   @relation(fields: [clientId], references: [id])
+}

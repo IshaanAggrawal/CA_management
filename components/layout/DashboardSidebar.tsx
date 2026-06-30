@@ -2,9 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
+import { SignOutButton } from "@clerk/nextjs";
+import GlobalQuickAddMenu from "./GlobalQuickAddMenu";
 
 export default function DashboardSidebar() {
   const pathname = usePathname();
+  const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
 
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
@@ -38,10 +42,15 @@ export default function DashboardSidebar() {
         <p className="font-body-md text-body-md text-on-primary-container">Practice Management</p>
       </div>
       
-      <button onClick={() => alert("Opening Global Quick Add Menu...")} className="mb-6 flex items-center justify-center gap-2 bg-on-tertiary-container text-on-tertiary py-3 px-4 rounded-xl font-bold transition-transform active:scale-95 cursor-pointer hover:bg-opacity-90">
+      <button onClick={() => setIsQuickAddOpen(true)} className="mb-6 flex items-center justify-center gap-2 bg-on-tertiary-container text-on-tertiary py-3 px-4 rounded-xl font-bold transition-transform active:scale-95 cursor-pointer hover:bg-opacity-90">
         <span className="material-symbols-outlined">add</span>
         <span>New Entry</span>
       </button>
+
+      <GlobalQuickAddMenu 
+        isOpen={isQuickAddOpen} 
+        onClose={() => setIsQuickAddOpen(false)} 
+      />
 
       <nav className="flex-1 space-y-1">
         {navItems.map((item) => (
@@ -53,12 +62,24 @@ export default function DashboardSidebar() {
       </nav>
 
       <div className="pt-4 mt-auto border-t border-on-primary-container/20 space-y-1">
-        {footerItems.map((item) => (
-          <Link key={item.href} href={item.href} className={getLinkClass(item.href)}>
-            <span className="material-symbols-outlined">{item.icon}</span>
-            <span className="font-body-md">{item.label}</span>
-          </Link>
-        ))}
+        {footerItems.map((item) => {
+          if (item.label === "Logout") {
+            return (
+              <SignOutButton key={item.label}>
+                <button className={`w-full ${getLinkClass(item.href)} cursor-pointer`}>
+                  <span className="material-symbols-outlined">{item.icon}</span>
+                  <span className="font-body-md">{item.label}</span>
+                </button>
+              </SignOutButton>
+            );
+          }
+          return (
+            <Link key={item.href} href={item.href} className={getLinkClass(item.href)}>
+              <span className="material-symbols-outlined">{item.icon}</span>
+              <span className="font-body-md">{item.label}</span>
+            </Link>
+          );
+        })}
       </div>
     </aside>
   );
