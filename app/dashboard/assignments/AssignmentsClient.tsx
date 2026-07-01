@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { createAssignment, exportAssignmentsCSV, updateAssignmentStatus } from "@/lib/actions/assignment-actions";
+import { createAssignment, exportAssignmentsCSV, updateAssignmentStatus, deleteAssignment } from "@/lib/actions/assignment-actions";
 
 type AssignmentStatus = "TODO" | "IN_PROGRESS" | "REVIEW" | "COMPLETED";
 type AssignmentPriority = "LOW" | "MEDIUM" | "HIGH";
@@ -50,6 +50,8 @@ export default function AssignmentsClient({ initialAssignments, clients, users }
   const [selectedStatus, setSelectedStatus] = useState<AssignmentStatus | "ALL">("ALL");
   const [selectedAssignee, setSelectedAssignee] = useState("ALL");
   const [dueFilter, setDueFilter] = useState<FilterMode>("ALL");
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   const getProgress = (status: AssignmentStatus) => {
     switch (status) {
@@ -175,6 +177,19 @@ export default function AssignmentsClient({ initialAssignments, clients, users }
       console.error(error);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleDeleteAssignment = async (id: string) => {
+    setIsDeleting(id);
+    try {
+      await deleteAssignment(id);
+      setAssignments((prev) => prev.filter(a => a.id !== id));
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsDeleting(null);
+      setMenuOpenId(null);
     }
   };
 
@@ -361,10 +376,21 @@ export default function AssignmentsClient({ initialAssignments, clients, users }
                           </div>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-right">
-                        <button onClick={() => console.log("Task actions menu opened")} className="text-on-surface-variant hover:text-primary transition-colors cursor-pointer p-1">
+                      <td className="px-6 py-4 text-right relative">
+                        <button onClick={() => setMenuOpenId(menuOpenId === task.id ? null : task.id)} className="text-on-surface-variant hover:text-primary transition-colors cursor-pointer p-1">
                           <span className="material-symbols-outlined">more_vert</span>
                         </button>
+                        {menuOpenId === task.id && (
+                          <div className="absolute right-6 top-10 bg-white border border-slate-200 shadow-lg rounded-lg py-1 z-10 w-32">
+                            <button
+                              onClick={() => handleDeleteAssignment(task.id)}
+                              disabled={isDeleting === task.id}
+                              className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-slate-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {isDeleting === task.id ? "Deleting..." : "Delete"}
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   );
@@ -421,9 +447,22 @@ export default function AssignmentsClient({ initialAssignments, clients, users }
                               <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold ${getStatusColor(task.status)}`}>
                                 {task.status.replace("_", " ")}
                               </span>
-                              <button onClick={() => console.log("Task details...")} className="text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                                <span className="material-symbols-outlined text-base">more_vert</span>
-                              </button>
+                              <div className="relative">
+                                <button onClick={() => setMenuOpenId(menuOpenId === task.id ? null : task.id)} className={`text-on-surface-variant transition-opacity cursor-pointer ${menuOpenId === task.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                                  <span className="material-symbols-outlined text-base">more_vert</span>
+                                </button>
+                                {menuOpenId === task.id && (
+                                  <div className="absolute right-0 top-6 bg-white border border-slate-200 shadow-lg rounded-lg py-1 z-10 w-32">
+                                    <button
+                                      onClick={() => handleDeleteAssignment(task.id)}
+                                      disabled={isDeleting === task.id}
+                                      className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-slate-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                      {isDeleting === task.id ? "Deleting..." : "Delete"}
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
                             </div>
                             <h5 className={`font-title-lg text-title-lg text-primary mb-1 group-hover:text-primary-hover ${task.status === "COMPLETED" ? "text-opacity-50 line-through" : ""}`}>{task.title}</h5>
                             <p className="text-body-sm text-on-surface-variant mb-4">{task.client?.name || "No Client"}</p>

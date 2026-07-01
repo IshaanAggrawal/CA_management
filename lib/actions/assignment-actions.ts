@@ -99,3 +99,16 @@ export async function exportAssignmentsCSV() {
 
   return headers + rows;
 }
+
+export async function deleteAssignment(id: string) {
+  const user = await currentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  await prisma.assignment.delete({
+    where: { id },
+  });
+
+  revalidatePath("/dashboard/assignments");
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/calendar");
+}
