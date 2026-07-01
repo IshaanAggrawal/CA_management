@@ -1,10 +1,17 @@
 "use client";
-import Image from "next/image";
+import { useRouter } from "next/navigation";
 
-export default function StaffClient({ users = [] }: any) {
-  // Simple calculation for mock efficiency/capacity
-  const getTotalCapacity = () => users.length * 20; // 20 assignments per user
-  const getActiveAssignments = () => users.reduce((acc: number, u: any) => acc + (u.assignments?.length || 0), 0);
+type StaffUser = {
+  id: string;
+  name: string;
+  role: string;
+  assignments?: { id: string }[];
+};
+
+export default function StaffClient({ users = [] }: { users: StaffUser[] }) {
+  const router = useRouter();
+  const getTotalCapacity = () => users.length * 20;
+  const getActiveAssignments = () => users.reduce((acc, user) => acc + (user.assignments?.length || 0), 0);
 
   return (
     <div className="max-w-[1440px] mx-auto space-y-6">
@@ -42,12 +49,12 @@ export default function StaffClient({ users = [] }: any) {
         <div className="col-span-12 lg:col-span-8 bg-surface border border-outline-variant rounded-xl overflow-hidden shadow-sm">
           <div className="px-6 py-4 border-b border-outline-variant flex justify-between items-center bg-surface-container-lowest">
             <div className="flex gap-4">
-              <button className="font-label-md text-label-md py-1 border-b-2 border-secondary text-primary cursor-pointer">All Team</button>
-              <button className="font-label-md text-label-md py-1 text-on-surface-variant hover:text-primary cursor-pointer">Partners</button>
-              <button className="font-label-md text-label-md py-1 text-on-surface-variant hover:text-primary cursor-pointer">Managers</button>
-              <button className="font-label-md text-label-md py-1 text-on-surface-variant hover:text-primary cursor-pointer">Associates</button>
+              <button onClick={() => router.push("/dashboard/search?q=staff") } className="font-label-md text-label-md py-1 border-b-2 border-secondary text-primary cursor-pointer">All Team</button>
+              <button onClick={() => router.push("/dashboard/search?q=partners") } className="font-label-md text-label-md py-1 text-on-surface-variant hover:text-primary cursor-pointer">Partners</button>
+              <button onClick={() => router.push("/dashboard/search?q=managers") } className="font-label-md text-label-md py-1 text-on-surface-variant hover:text-primary cursor-pointer">Managers</button>
+              <button onClick={() => router.push("/dashboard/search?q=associates") } className="font-label-md text-label-md py-1 text-on-surface-variant hover:text-primary cursor-pointer">Associates</button>
             </div>
-            <button className="flex items-center gap-1 text-on-surface-variant hover:text-primary transition-colors cursor-pointer">
+            <button onClick={() => router.push("/dashboard/search?q=staff%20filters") } className="flex items-center gap-1 text-on-surface-variant hover:text-primary transition-colors cursor-pointer">
               <span className="material-symbols-outlined text-sm">filter_list</span>
               <span className="font-label-md text-label-md">Filters</span>
             </button>
@@ -64,13 +71,13 @@ export default function StaffClient({ users = [] }: any) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-outline-variant">
-                {users.map((user: any) => {
+                {users.map((user) => {
                   const activeCount = user.assignments?.length || 0;
                   const loadPercentage = Math.min(Math.round((activeCount / 20) * 100), 100);
                   const loadStatus = loadPercentage >= 80 ? { text: "CRITICAL", color: "text-error", bg: "bg-error" } :
                                      loadPercentage >= 60 ? { text: "STABLE", color: "text-on-secondary-container", bg: "bg-on-secondary-container" } :
                                                             { text: "AVAILABLE", color: "text-secondary", bg: "bg-secondary" };
-                  const efficiency = 80 + Math.round(Math.random() * 15); // Mock efficiency 80-95%
+                  const efficiency = Math.max(70, 100 - Math.round(loadPercentage / 2));
                   
                   return (
                     <tr key={user.id} className="hover:bg-surface-container-lowest transition-colors group">
@@ -108,7 +115,7 @@ export default function StaffClient({ users = [] }: any) {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <button className="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors opacity-0 group-hover:opacity-100 cursor-pointer">more_vert</button>
+                        <button onClick={() => router.push(`/dashboard/search?q=${encodeURIComponent(user.name)}`)} className="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors opacity-0 group-hover:opacity-100 cursor-pointer">more_vert</button>
                       </td>
                     </tr>
                   );
@@ -139,7 +146,7 @@ export default function StaffClient({ users = [] }: any) {
                   <span>Deadline: Oct 24</span>
                   <span>Est. 40 hrs</span>
                 </div>
-                <button className="w-full mt-3 py-1.5 border border-secondary text-secondary rounded font-label-md hover:bg-secondary hover:text-white transition-all cursor-pointer">Quick Assign</button>
+                <button onClick={() => router.push("/dashboard/assignments") } className="w-full mt-3 py-1.5 border border-secondary text-secondary rounded font-label-md hover:bg-secondary hover:text-white transition-all cursor-pointer">Quick Assign</button>
               </div>
               {/* Allocation Card 2 */}
               <div className="p-4 bg-surface-container rounded-lg border border-outline-variant hover:border-secondary transition-all cursor-move">
@@ -154,7 +161,7 @@ export default function StaffClient({ users = [] }: any) {
                   <span>Deadline: Nov 10</span>
                   <span>Est. 12 hrs</span>
                 </div>
-                <button className="w-full mt-3 py-1.5 border border-secondary text-secondary rounded font-label-md hover:bg-secondary hover:text-white transition-all cursor-pointer">Quick Assign</button>
+                <button onClick={() => router.push("/dashboard/assignments") } className="w-full mt-3 py-1.5 border border-secondary text-secondary rounded font-label-md hover:bg-secondary hover:text-white transition-all cursor-pointer">Quick Assign</button>
               </div>
               {/* Allocation Card 3 */}
               <div className="p-4 bg-surface-container rounded-lg border border-outline-variant hover:border-secondary transition-all cursor-move">
@@ -169,10 +176,10 @@ export default function StaffClient({ users = [] }: any) {
                   <span>Deadline: Nov 15</span>
                   <span>Est. 60 hrs</span>
                 </div>
-                <button className="w-full mt-3 py-1.5 border border-secondary text-secondary rounded font-label-md hover:bg-secondary hover:text-white transition-all cursor-pointer">Quick Assign</button>
+                <button onClick={() => router.push("/dashboard/assignments") } className="w-full mt-3 py-1.5 border border-secondary text-secondary rounded font-label-md hover:bg-secondary hover:text-white transition-all cursor-pointer">Quick Assign</button>
               </div>
             </div>
-            <button className="w-full mt-6 text-on-surface-variant hover:text-primary font-label-md flex items-center justify-center gap-1 transition-colors cursor-pointer">
+            <button onClick={() => router.push("/dashboard/assignments") } className="w-full mt-6 text-on-surface-variant hover:text-primary font-label-md flex items-center justify-center gap-1 transition-colors cursor-pointer">
               View all pending tasks
               <span className="material-symbols-outlined text-sm">arrow_forward</span>
             </button>

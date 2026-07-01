@@ -1,5 +1,28 @@
 "use client";
-export default function BillingClient({ invoices = [], metrics }: any) {
+
+type BillingInvoice = {
+  id: string;
+  amount: number;
+  status: "PENDING" | "PAID" | "OVERDUE";
+  dueDate: string | Date;
+  client: {
+    name: string;
+  };
+};
+
+type BillingMetrics = {
+  outstandingPayments: number;
+  billedThisMonth: number;
+  invoicesThisMonth: number;
+  collectionRate: number;
+};
+
+type BillingClientProps = {
+  invoices?: BillingInvoice[];
+  metrics: BillingMetrics;
+};
+
+export default function BillingClient({ invoices = [], metrics }: BillingClientProps) {
   return (
     <>
       {/* Page Header */}
@@ -111,7 +134,7 @@ export default function BillingClient({ invoices = [], metrics }: any) {
                   <td colSpan={6} className="px-6 py-10 text-center text-on-surface-variant font-label-md">No invoices found</td>
                 </tr>
               ) : (
-                invoices.map((invoice: any) => (
+                  invoices.map((invoice) => (
                   <tr key={invoice.id} className="hover:bg-surface-container-low transition-colors group">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
@@ -223,13 +246,13 @@ export default function BillingClient({ invoices = [], metrics }: any) {
           </h5>
           <p className="font-body-sm text-body-sm text-on-surface-variant mb-6">Automated collection engine detected 3 high-priority overdue payments.</p>
           <div className="space-y-3 relative z-10">
-            {invoices.filter((i:any) => i.status !== "PAID").slice(0,2).map((inv: any) => (
-              <div key={inv.id} className="flex items-center justify-between p-3 bg-white/80 rounded-lg border border-outline-variant hover:border-secondary transition-all cursor-pointer group">
+            {invoices.filter((invoice) => invoice.status !== "PAID").slice(0,2).map((invoice) => (
+              <div key={invoice.id} className="flex items-center justify-between p-3 bg-white/80 rounded-lg border border-outline-variant hover:border-secondary transition-all cursor-pointer group">
                 <div className="flex items-center gap-3">
                   <div className="text-error"><span className="material-symbols-outlined">warning</span></div>
                   <div>
-                    <p className="font-label-md text-label-md text-on-surface">{inv.client?.name}</p>
-                    <p className="font-label-sm text-label-sm text-on-surface-variant">₹{inv.amount.toLocaleString()} • Overdue</p>
+                    <p className="font-label-md text-label-md text-on-surface">{invoice.client?.name}</p>
+                    <p className="font-label-sm text-label-sm text-on-surface-variant">₹{invoice.amount.toLocaleString()} • Overdue</p>
                   </div>
                 </div>
                 <span className="material-symbols-outlined text-secondary opacity-0 group-hover:opacity-100 transition-opacity">send</span>

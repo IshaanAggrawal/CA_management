@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 // Utility functions for calendar
@@ -9,7 +9,16 @@ const getFirstDayOfMonth = (year: number, month: number) => new Date(year, month
 
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
-export default function CalendarClient({ assignments = [] }: { assignments: any[] }) {
+type CalendarAssignment = {
+  id: string;
+  deadline: string | Date;
+  title: string;
+  priority: string;
+  status: string;
+  client?: { name?: string | null } | null;
+};
+
+export default function CalendarClient({ assignments = [] }: { assignments: CalendarAssignment[] }) {
   const router = useRouter();
   
   // Create events based on assignments
@@ -38,10 +47,30 @@ export default function CalendarClient({ assignments = [] }: { assignments: any[
   const [selectedDate, setSelectedDate] = useState<number | null>(new Date().getDate());
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
 
+  const getEventsForDate = (date: Date) => currentEvents.filter((event) => event.date === date.getDate() && event.month === date.getMonth() && event.year === date.getFullYear());
+
+  const selectedDateValue = useMemo(() => {
+    const baseDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), selectedDate || new Date().getDate());
+    return baseDate;
+  }, [currentDate, selectedDate]);
+
+  const weekDates = useMemo(() => {
+    const startOfWeek = new Date(selectedDateValue);
+    startOfWeek.setDate(selectedDateValue.getDate() - selectedDateValue.getDay());
+
+    return Array.from({ length: 7 }, (_, index) => {
+      const date = new Date(startOfWeek);
+      date.setDate(startOfWeek.getDate() + index);
+      return date;
+    });
+  }, [selectedDateValue]);
+
+  const selectedDateEvents = getEventsForDate(selectedDateValue);
+  const selectedWeekEvents = weekDates.flatMap((date) => getEventsForDate(date));
+
   const handleLoadLogs = async () => {
     setIsLoadingLogs(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setIsLoadingLogs(false);
+    router.push("/dashboard/search?q=whatsapp%20logs");
   };
 
   const year = currentDate.getFullYear();
@@ -61,6 +90,34 @@ export default function CalendarClient({ assignments = [] }: { assignments: any[
     setSelectedDate(null);
   };
 
+  const handlePrevDay = () => {
+    const previousDay = new Date(selectedDateValue);
+    previousDay.setDate(selectedDateValue.getDate() - 1);
+    setCurrentDate(new Date(previousDay.getFullYear(), previousDay.getMonth(), 1));
+    setSelectedDate(previousDay.getDate());
+  };
+
+  const handleNextDay = () => {
+    const nextDay = new Date(selectedDateValue);
+    nextDay.setDate(selectedDateValue.getDate() + 1);
+    setCurrentDate(new Date(nextDay.getFullYear(), nextDay.getMonth(), 1));
+    setSelectedDate(nextDay.getDate());
+  };
+
+  const handlePrevWeek = () => {
+    const previousWeek = new Date(selectedDateValue);
+    previousWeek.setDate(selectedDateValue.getDate() - 7);
+    setCurrentDate(new Date(previousWeek.getFullYear(), previousWeek.getMonth(), 1));
+    setSelectedDate(previousWeek.getDate());
+  };
+
+  const handleNextWeek = () => {
+    const nextWeek = new Date(selectedDateValue);
+    nextWeek.setDate(selectedDateValue.getDate() + 7);
+    setCurrentDate(new Date(nextWeek.getFullYear(), nextWeek.getMonth(), 1));
+    setSelectedDate(nextWeek.getDate());
+  };
+
   const getEventClass = (type: string) => {
     switch (type) {
       case "gst": return "border-secondary/20 bg-secondary/5 text-secondary";
@@ -71,9 +128,8 @@ export default function CalendarClient({ assignments = [] }: { assignments: any[
     }
   };
 
-  const renderDays = () => {
+  const renderMonthGrid = () => {
     const days = [];
-    // Previous month filler days
     for (let i = firstDay - 1; i >= 0; i--) {
       days.push(
         <div key={`prev-${i}`} className="p-2 border-r border-b border-slate-100 bg-slate-50/50 h-24 sm:h-32">
@@ -81,31 +137,36 @@ export default function CalendarClient({ assignments = [] }: { assignments: any[
         </div>
       );
     }
-    
-    // Current month days
+
     for (let i = 1; i <= daysInMonth; i++) {
       const today = new Date();
       const isToday = i === today.getDate() && month === today.getMonth() && year === today.getFullYear();
       const isSelected = selectedDate === i;
-      const dayEvents = currentEvents.filter(e => e.date === i && e.month === month && e.year === year);
+      const dayEvents = currentEvents.filter((event) => event.date === i && event.month === month && event.year === year);
       const isSunday = new Date(year, month, i).getDay() === 0;
-      
+
       days.push(
-        <div 
-          key={`current-${i}`} 
-          onClick={() => setSelectedDate(i)}
+        <div
+          key={`current-${i}`}
+          onClick={() => {
+            setSelectedDate(i);
+            setView("Day");
+          }}
           className={`p-2 border-r border-b border-slate-200 h-24 sm:h-32 hover:bg-slate-50 transition-colors cursor-pointer group relative overflow-hidden ${isSelected ? 'bg-teal-50/30 ring-2 ring-inset ring-[#005c53]' : ''} ${dayEvents.length > 0 ? 'bg-slate-50/30' : ''}`}
         >
           <div className="flex justify-between items-start">
             <span className={`text-sm font-bold ${isSunday ? 'text-red-500' : 'text-slate-700'}`}>{i}</span>
             {isToday && <span className="text-[9px] bg-[#005c53] text-white px-1.5 py-0.5 rounded font-bold uppercase tracking-wider shadow-sm">Today</span>}
           </div>
-          
+
           <div className="mt-1.5 space-y-1.5 overflow-y-auto max-h-[calc(100%-24px)] custom-scrollbar pr-1">
-            {dayEvents.map(event => (
-              <div 
-                key={event.id} 
-                onClick={(e) => { e.stopPropagation(); console.log(`Opening details for ${event.title}`); }}
+            {dayEvents.map((event) => (
+              <div
+                key={event.id}
+                onClick={(eventClick) => {
+                  eventClick.stopPropagation();
+                  router.push(`/dashboard/assignments?q=${encodeURIComponent(event.title)}`);
+                }}
                 className={`px-1.5 py-1 rounded text-[10px] font-bold truncate border ${getEventClass(event.type)} hover:brightness-95 transition-all`}
                 title={event.title}
               >
@@ -117,7 +178,6 @@ export default function CalendarClient({ assignments = [] }: { assignments: any[
       );
     }
 
-    // Next month filler days (fill up to 35 or 42 grid cells)
     const totalCells = days.length;
     const remainingCells = totalCells > 35 ? 42 - totalCells : 35 - totalCells;
     for (let i = 1; i <= remainingCells; i++) {
@@ -129,6 +189,104 @@ export default function CalendarClient({ assignments = [] }: { assignments: any[
     }
 
     return days;
+  };
+
+  const renderDayView = () => {
+    const dateLabel = selectedDateValue.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+
+    return (
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h3 className="font-bold text-lg text-slate-900">{dateLabel}</h3>
+            <p className="text-sm text-slate-500 mt-1">{selectedDateEvents.length} deadlines scheduled for this day</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={handlePrevDay} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-600 transition-colors cursor-pointer">
+              <span className="material-symbols-outlined">chevron_left</span>
+            </button>
+            <button onClick={handleNextDay} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-600 transition-colors cursor-pointer">
+              <span className="material-symbols-outlined">chevron_right</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          {selectedDateEvents.length === 0 ? (
+            <div className="py-12 text-center border-2 border-dashed border-slate-200 rounded-xl text-slate-500">
+              No deadlines for this day.
+            </div>
+          ) : (
+            selectedDateEvents.map((event) => (
+              <button key={event.id} onClick={() => router.push(`/dashboard/assignments?q=${encodeURIComponent(event.title)}`)} className="w-full p-4 rounded-xl border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors text-left">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="font-bold text-slate-900">{event.title}</p>
+                    <p className="text-xs text-slate-500 mt-1">{event.group}</p>
+                  </div>
+                  <span className={`text-[10px] px-2 py-1 rounded font-bold uppercase tracking-wider ${getEventClass(event.type)}`}>{event.assignment.status.replace("_", " ")}</span>
+                </div>
+              </button>
+            ))
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderWeekView = () => {
+    const weekLabel = `${weekDates[0].toLocaleDateString("en-GB", { day: "numeric", month: "short" })} - ${weekDates[6].toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`;
+
+    return (
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h3 className="font-bold text-lg text-slate-900">{weekLabel}</h3>
+            <p className="text-sm text-slate-500 mt-1">{selectedWeekEvents.length} deadlines in this week</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={handlePrevWeek} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-600 transition-colors cursor-pointer">
+              <span className="material-symbols-outlined">chevron_left</span>
+            </button>
+            <button onClick={handleNextWeek} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-600 transition-colors cursor-pointer">
+              <span className="material-symbols-outlined">chevron_right</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
+          {weekDates.map((date) => {
+            const events = getEventsForDate(date);
+            return (
+              <div key={date.toISOString()} className="rounded-xl border border-slate-200 p-3 bg-slate-50/50 min-h-[160px]">
+                <div className="flex items-center justify-between mb-3">
+                  <button onClick={() => {
+                    setCurrentDate(new Date(date.getFullYear(), date.getMonth(), 1));
+                    setSelectedDate(date.getDate());
+                    setView("Day");
+                  }} className="text-left">
+                    <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{date.toLocaleDateString("en-GB", { weekday: "short" })}</p>
+                    <p className="text-sm font-bold text-slate-900">{date.getDate()}</p>
+                  </button>
+                  <span className="text-[10px] font-bold text-slate-500">{events.length}</span>
+                </div>
+                <div className="space-y-2">
+                  {events.length === 0 ? (
+                    <p className="text-xs text-slate-400">No items</p>
+                  ) : (
+                    events.slice(0, 3).map((event) => (
+                      <button key={event.id} onClick={() => router.push(`/dashboard/assignments?q=${encodeURIComponent(event.title)}`)} className={`w-full text-left px-2 py-1 rounded text-[10px] font-bold truncate border ${getEventClass(event.type)}`}>
+                        {event.title}
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -151,7 +309,7 @@ export default function CalendarClient({ assignments = [] }: { assignments: any[
               </button>
             ))}
           </div>
-          <button onClick={() => console.log("Opening calendar filters...")} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg font-semibold text-xs text-slate-700 hover:bg-slate-50 transition-colors shadow-sm cursor-pointer">
+          <button onClick={() => router.push("/dashboard/search?q=calendar") } className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg font-semibold text-xs text-slate-700 hover:bg-slate-50 transition-colors shadow-sm cursor-pointer">
             <span className="material-symbols-outlined text-[16px]">filter_list</span> Filter
           </button>
         </div>
@@ -188,22 +346,24 @@ export default function CalendarClient({ assignments = [] }: { assignments: any[
             </div>
           </div>
           
-          {/* Calendar Grid */}
-          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-            {/* Days of Week */}
-            <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50/80">
-              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                <div key={day} className={`p-3 text-center text-xs font-bold uppercase tracking-wider ${day === 'Sun' ? 'text-red-400' : 'text-slate-500'}`}>
-                  {day}
-                </div>
-              ))}
+          {view === "Month" ? (
+            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+              <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50/80">
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                  <div key={day} className={`p-3 text-center text-xs font-bold uppercase tracking-wider ${day === 'Sun' ? 'text-red-400' : 'text-slate-500'}`}>
+                    {day}
+                  </div>
+                ))}
+              </div>
+              <div className="grid grid-cols-7 bg-white">
+                {renderMonthGrid()}
+              </div>
             </div>
-            
-            {/* Month Days */}
-            <div className="grid grid-cols-7 bg-white">
-              {renderDays()}
-            </div>
-          </div>
+          ) : view === "Day" ? (
+            renderDayView()
+          ) : (
+            renderWeekView()
+          )}
         </div>
         
         {/* Side Panels (Right Column) */}
@@ -271,7 +431,7 @@ export default function CalendarClient({ assignments = [] }: { assignments: any[
                     </div>
                     <span className="text-[10px] text-teal-100 font-medium">10:30 AM</span>
                   </div>
-                  <p className="text-xs text-teal-50 mb-3 leading-relaxed">Sent bank statement requests to 14 "Pending" GST clients.</p>
+                  <p className="text-xs text-teal-50 mb-3 leading-relaxed">Sent bank statement requests to 14 &quot;Pending&quot; GST clients.</p>
                   <div className="flex justify-between items-center text-[11px] font-bold">
                     <span className="text-teal-200">Delivered: 14</span>
                     <button onClick={handleLoadLogs} disabled={isLoadingLogs} className="text-white underline hover:text-teal-100 cursor-pointer disabled:opacity-50 disabled:no-underline flex items-center gap-1">
@@ -280,7 +440,7 @@ export default function CalendarClient({ assignments = [] }: { assignments: any[
                   </div>
                 </div>
               </div>
-              <button onClick={() => console.log("Opening automation settings...")} className="w-full mt-4 py-2.5 bg-white/10 rounded-lg text-white font-bold text-sm hover:bg-white/20 transition-colors border border-white/20 cursor-pointer shadow-sm">
+              <button onClick={() => router.push("/dashboard/settings#integrations")} className="w-full mt-4 py-2.5 bg-white/10 rounded-lg text-white font-bold text-sm hover:bg-white/20 transition-colors border border-white/20 cursor-pointer shadow-sm">
                 Configure Reminders
               </button>
             </div>

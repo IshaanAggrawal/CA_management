@@ -3,6 +3,7 @@ import DashboardHeader from "@/components/layout/DashboardHeader";
 import { currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
+import type { UserRole } from "@prisma/client";
 import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +20,8 @@ export default async function DashboardLayout({
   const user = await currentUser();
   if (!user) redirect("/login");
 
+  const role = user.publicMetadata?.role === "ADMIN" ? "ADMIN" : "STAFF";
+
   // Sync Clerk user to our Prisma Database
   await prisma.user.upsert({
     where: { id: user.id },
@@ -30,7 +33,7 @@ export default async function DashboardLayout({
       id: user.id,
       email: user.emailAddresses[0]?.emailAddress || "",
       name: `${user.firstName || ""} ${user.lastName || ""}`.trim() || "User",
-      role: (user.publicMetadata?.role as string) || "STAFF",
+      role: role as UserRole,
     }
   });
   return (

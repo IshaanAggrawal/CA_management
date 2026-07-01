@@ -1,29 +1,67 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
-const chartData6Months = [
-  { name: 'APR', actual: 65, target: 80 },
-  { name: 'MAY', actual: 75, target: 85 },
-  { name: 'JUN', actual: 82, target: 90 },
-  { name: 'JUL', actual: 95, target: 75 },
-  { name: 'AUG', actual: 88, target: 85 },
-  { name: 'SEP', actual: 60, target: 95 },
-];
+type DashboardAssignment = {
+  id: string;
+  title: string;
+  status: string;
+  priority: string;
+  client?: { name?: string | null } | null;
+  user?: { name?: string | null } | null;
+};
 
-const chartData12Months = [
-  { name: 'OCT', actual: 50, target: 70 },
-  { name: 'NOV', actual: 60, target: 70 },
-  { name: 'DEC', actual: 95, target: 75 },
-  { name: 'JAN', actual: 80, target: 80 },
-  { name: 'FEB', actual: 85, target: 85 },
-  { name: 'MAR', actual: 90, target: 85 },
-  ...chartData6Months
-];
+type DashboardDeadline = {
+  id: string;
+  title: string;
+  priority: string;
+  deadline: string | Date;
+  client?: { name?: string | null } | null;
+};
 
-export default function DashboardClient({ recentAssignments, upcomingDeadlines, metrics }: any) {
+type DashboardMetrics = {
+  activeAssignments: number;
+  totalAssignments: number;
+};
+
+type DashboardHistoryItem = {
+  id: string;
+  title: string;
+  status: string;
+  priority: string;
+  deadline: string | Date | null;
+  createdAt: string | Date;
+};
+
+type ChartTooltipProps = {
+  active?: boolean;
+  payload?: Array<{ value?: number }>;
+  label?: string;
+};
+
+function CustomTooltip({ active, payload, label }: ChartTooltipProps) {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-white border border-slate-200 p-3 rounded-lg shadow-lg">
+        <p className="font-bold text-slate-800 text-sm mb-1">{label}</p>
+        <div className="space-y-1">
+          <p className="text-xs text-[#005c53] font-bold">
+            Actual: {payload[0].value}L
+          </p>
+          <p className="text-xs text-slate-400 font-bold">
+            Target: {payload[1].value}L
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
+
+export default function DashboardClient({ recentAssignments, upcomingDeadlines, allAssignments, metrics }: { recentAssignments: DashboardAssignment[]; upcomingDeadlines: DashboardDeadline[]; allAssignments: DashboardHistoryItem[]; metrics: DashboardMetrics }) {
   const router = useRouter();
   const [chartPeriod, setChartPeriod] = useState("6");
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
@@ -31,40 +69,41 @@ export default function DashboardClient({ recentAssignments, upcomingDeadlines, 
   
   const handleGeneratePDF = async () => {
     setIsGeneratingPDF(true);
-    // Simulate server action delay for generating PDF
     await new Promise(resolve => setTimeout(resolve, 1500));
     setIsGeneratingPDF(false);
-    // In future: triggers an actual file download
+    router.push("/dashboard/billing");
   };
 
   const handleLoadCRM = async () => {
     setIsLoadingCRM(true);
-    // Simulate server action delay for loading CRM module
     await new Promise(resolve => setTimeout(resolve, 1200));
     setIsLoadingCRM(false);
     router.push("/dashboard/clients");
   };
-  
-  const currentChartData = chartPeriod === "6" ? chartData6Months : chartData12Months;
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-white border border-slate-200 p-3 rounded-lg shadow-lg">
-          <p className="font-bold text-slate-800 text-sm mb-1">{label}</p>
-          <div className="space-y-1">
-            <p className="text-xs text-[#005c53] font-bold">
-              Actual: {payload[0].value}L
-            </p>
-            <p className="text-xs text-slate-400 font-bold">
-              Target: {payload[1].value}L
-            </p>
-          </div>
-        </div>
-      );
+  const currentChartData = useMemo(() => {
+    const referenceDate = new Date();
+    const monthsBack = chartPeriod === "6" ? 6 : 12;
+    const entries: Array<{ name: string; actual: number; target: number }> = [];
+
+    for (let offset = monthsBack - 1; offset >= 0; offset -= 1) {
+      const monthDate = new Date(referenceDate.getFullYear(), referenceDate.getMonth() - offset, 1);
+      const monthIndex = monthDate.getMonth();
+      const year = monthDate.getFullYear();
+      const label = monthDate.toLocaleString("default", { month: "short" }).toUpperCase();
+
+      const monthlyAssignments = allAssignments.filter((assignment) => {
+        const sourceDate = new Date(assignment.deadline || assignment.createdAt);
+        return sourceDate.getMonth() === monthIndex && sourceDate.getFullYear() === year;
+      });
+
+      const actual = monthlyAssignments.filter((assignment) => assignment.status === "COMPLETED").length;
+      const target = monthlyAssignments.length;
+      entries.push({ name: label, actual, target });
     }
-    return null;
-  };
+
+    return entries;
+  }, [chartPeriod, allAssignments]);
 
   return (
     <>
@@ -72,7 +111,7 @@ export default function DashboardClient({ recentAssignments, upcomingDeadlines, 
       <div className="mb-6 flex justify-between items-end">
         <div>
           <h2 className="font-headline-md text-[28px] font-bold text-slate-900 leading-tight">Firm Overview</h2>
-          <p className="text-slate-500 font-body-md mt-1">Good morning, here's what's happening at the practice today.</p>
+          <p className="text-slate-500 font-body-md mt-1">Good morning, here&apos;s what&apos;s happening at the practice today.</p>
         </div>
         <div className="flex gap-2">
           <span className="px-3 py-1.5 bg-green-50 text-green-700 rounded-full text-xs font-bold flex items-center gap-2 border border-green-100">
@@ -196,7 +235,7 @@ export default function DashboardClient({ recentAssignments, upcomingDeadlines, 
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {recentAssignments.map((assignment: any) => (
+                {recentAssignments.map((assignment) => (
                   <tr key={assignment.id} className="hover:bg-slate-50/50 transition-colors cursor-pointer" onClick={() => router.push("/dashboard/assignments")}>
                     <td className="px-5 py-4">
                       <p className="text-sm font-bold text-slate-900">{assignment.client?.name || "No Client"}</p>
@@ -206,8 +245,8 @@ export default function DashboardClient({ recentAssignments, upcomingDeadlines, 
                       <div className="flex items-center gap-2.5">
                         {assignment.user ? (
                           <>
-                            <div className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[10px] font-bold border border-indigo-200">{assignment.user.name.substring(0,2).toUpperCase()}</div>
-                            <span className="text-xs font-medium text-slate-700">{assignment.user.name}</span>
+                            <div className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[10px] font-bold border border-indigo-200">{(assignment.user.name ?? "UN").substring(0,2).toUpperCase()}</div>
+                            <span className="text-xs font-medium text-slate-700">{assignment.user.name ?? "Unassigned"}</span>
                           </>
                         ) : (
                           <span className="text-xs font-medium text-slate-400">Unassigned</span>
@@ -237,10 +276,10 @@ export default function DashboardClient({ recentAssignments, upcomingDeadlines, 
             <button onClick={() => router.push("/dashboard/calendar")} className="material-symbols-outlined text-slate-400 hover:text-[#005c53] transition-colors cursor-pointer text-[20px]">calendar_month</button>
           </div>
           <div className="p-5 space-y-5 flex-1 custom-scrollbar overflow-y-auto">
-            {upcomingDeadlines.length === 0 ? (
+              {upcomingDeadlines.length === 0 ? (
               <p className="text-sm text-slate-500 text-center py-4">No upcoming deadlines.</p>
             ) : (
-              upcomingDeadlines.map((deadline: any) => {
+                upcomingDeadlines.map((deadline) => {
                 const date = new Date(deadline.deadline);
                 const month = date.toLocaleString('default', { month: 'short' }).toUpperCase();
                 const day = date.getDate().toString().padStart(2, '0');

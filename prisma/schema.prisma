@@ -6,50 +6,106 @@ datasource db {
   provider  = "postgresql"
 }
 
+enum UserRole {
+  ADMIN
+  STAFF
+}
+
+enum ClientStatus {
+  ACTIVE
+  PENDING_KYC
+  INACTIVE
+}
+
+enum ClientEntityType {
+  CORPORATE
+  INDIVIDUAL
+  LLP
+  OTHER
+}
+
+enum AssignmentStatus {
+  TODO
+  IN_PROGRESS
+  REVIEW
+  COMPLETED
+}
+
+enum AssignmentPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum InvoiceStatus {
+  PENDING
+  PAID
+  OVERDUE
+}
+
 model User {
-  id        String       @id // Maps to Clerk User ID
-  email     String       @unique
-  name      String
-  role      String       @default("STAFF") // ADMIN or STAFF
-  createdAt DateTime     @default(now())
+  id         String        @id // Maps to Clerk User ID
+  email      String        @unique
+  name       String
+  role       UserRole      @default(STAFF)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @default(now()) @updatedAt
   
   assignments Assignment[]
 }
 
 model Client {
-  id        String       @id @default(cuid())
-  name      String
-  pan       String?
-  gstin     String?
-  email     String?
-  phone     String?
-  status    String       @default("ACTIVE") // ACTIVE, INACTIVE
-  createdAt DateTime     @default(now())
+  id         String        @id @default(cuid())
+  name       String
+  entityType ClientEntityType @default(OTHER)
+  partnerName String?
+  contactPerson String?
+  city       String?
+  pan        String?
+  gstin      String?
+  email      String?
+  phone      String?
+  status     ClientStatus  @default(ACTIVE)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @default(now()) @updatedAt
 
-  assignments Assignment[]
+  assignments Assignment[] 
   invoices    Invoice[]
 }
 
 model Assignment {
-  id          String    @id @default(cuid())
+  id          String             @id @default(cuid())
   title       String
   description String?
-  status      String    @default("TODO") // TODO, IN_PROGRESS, REVIEW, COMPLETED
-  priority    String    @default("MEDIUM") // LOW, MEDIUM, HIGH
+  status      AssignmentStatus    @default(TODO)
+  priority    AssignmentPriority  @default(MEDIUM)
   deadline    DateTime?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
   
   clientId    String
-  client      Client    @relation(fields: [clientId], references: [id])
+  client      Client             @relation(fields: [clientId], references: [id])
   userId      String?
-  user        User?     @relation(fields: [userId], references: [id])
+  user        User?              @relation(fields: [userId], references: [id])
+
+  @@index([clientId])
+  @@index([userId])
+  @@index([status])
+  @@index([deadline])
 }
 
 model Invoice {
-  id          String   @id @default(cuid())
-  amount      Float
-  status      String   @default("PENDING") // PENDING, PAID, OVERDUE
+  id          String        @id @default(cuid())
+  amount      Decimal       @db.Decimal(12, 2)
+  status      InvoiceStatus @default(PENDING)
   dueDate     DateTime
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
   
   clientId    String
-  client      Client   @relation(fields: [clientId], references: [id])
+  client      Client        @relation(fields: [clientId], references: [id])
+
+  @@index([clientId])
+  @@index([status])
+  @@index([dueDate])
 }

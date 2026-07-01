@@ -1,21 +1,41 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+
+type SupportTicket = {
+  id: string;
+  subject: string;
+  status: "Resolved" | "In Progress" | "Open";
+  updatedAt: string;
+};
 
 export default function SupportPage() {
+  const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
+  const [recentTickets, setRecentTickets] = useState<SupportTicket[]>([
+    { id: "TCK-8921", subject: "GST Portal Sync Failing for new client", status: "Resolved", updatedAt: "Oct 24, 2023" },
+    { id: "TCK-9014", subject: "Billing invoice format customization", status: "In Progress", updatedAt: "Today at 9:15 AM" },
+  ]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    // Simulate network delay
     setTimeout(() => {
       setIsSubmitting(false);
       setSubmitted(true);
-      setTimeout(() => setSubmitted(false), 3000); // reset after 3s
+      setRecentTickets((tickets) => [
+        { id: `TCK-${Math.floor(1000 + Math.random() * 9000)}`, subject: "New support request", status: "Open" as const, updatedAt: "Just now" },
+        ...tickets,
+      ].slice(0, 5));
+      setTimeout(() => setSubmitted(false), 3000);
     }, 1500);
   };
+
+  const canSubmit = useMemo(() => true, []);
 
   return (
     <div className="space-y-6">
@@ -85,13 +105,24 @@ export default function SupportPage() {
             </div>
 
             {/* File Upload */}
-            <div className="border-2 border-dashed border-slate-200 rounded-lg p-6 flex flex-col items-center justify-center text-center bg-slate-50/50 hover:bg-slate-50 hover:border-slate-300 transition-all cursor-pointer group">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="border-2 border-dashed border-slate-200 rounded-lg p-6 flex flex-col items-center justify-center text-center bg-slate-50/50 hover:bg-slate-50 hover:border-slate-300 transition-all cursor-pointer group w-full"
+            >
               <div className="w-12 h-12 bg-white shadow-sm border border-slate-100 rounded-full flex items-center justify-center text-slate-400 group-hover:text-[#005c53] transition-colors mb-3">
                 <span className="material-symbols-outlined">cloud_upload</span>
               </div>
-              <p className="text-sm font-bold text-slate-700">Click to upload screenshots</p>
+              <p className="text-sm font-bold text-slate-700">{selectedFileName ? selectedFileName : "Click to upload screenshots"}</p>
               <p className="text-xs text-slate-400 mt-1">PNG, JPG, or PDF (Max 5MB)</p>
-            </div>
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/png,image/jpeg,application/pdf"
+              className="hidden"
+              onChange={(event) => setSelectedFileName(event.target.files?.[0]?.name || null)}
+            />
 
             {/* Submit Button */}
             <div className="pt-2 flex items-center justify-between">
@@ -100,7 +131,7 @@ export default function SupportPage() {
               </p>
               <button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isSubmitting || !canSubmit}
                 className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all ${
                   submitted
                     ? "bg-green-600 text-white"
@@ -152,9 +183,12 @@ export default function SupportPage() {
                 </div>
                 <div>
                   <p className="text-xs font-bold text-slate-400 uppercase">Email Support</p>
-                  <p className="text-sm font-semibold text-[#005c53] mt-0.5 cursor-pointer hover:underline">support@proauditca.com</p>
+                  <a href="mailto:support@proauditca.com?subject=Support%20Request" className="text-sm font-semibold text-[#005c53] mt-0.5 cursor-pointer hover:underline">support@proauditca.com</a>
                 </div>
               </div>
+              <button onClick={() => router.push("/dashboard/search?q=support")} className="w-full mt-2 px-4 py-2 rounded-lg border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 transition-colors">
+                Search Knowledge Base
+              </button>
             </div>
           </div>
 
@@ -162,32 +196,21 @@ export default function SupportPage() {
           <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
             <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
               <h4 className="font-bold text-slate-900 text-sm">Recent Tickets</h4>
-              <button className="text-[11px] font-bold text-[#005c53] hover:underline cursor-pointer uppercase tracking-wider">View All</button>
+              <button onClick={() => router.push("/dashboard/search?q=tickets")} className="text-[11px] font-bold text-[#005c53] hover:underline cursor-pointer uppercase tracking-wider">View All</button>
             </div>
             <div className="divide-y divide-slate-100">
-              {/* Ticket 1 */}
-              <div className="p-4 hover:bg-slate-50 transition-colors cursor-pointer group">
-                <div className="flex justify-between items-start mb-1">
-                  <span className="text-[10px] font-mono text-slate-400 group-hover:text-[#005c53]">#TCK-8921</span>
-                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-green-50 text-green-700 border border-green-200">
-                    Resolved
-                  </span>
+              {recentTickets.map((ticket) => (
+                <div key={ticket.id} onClick={() => router.push(`/dashboard/search?q=${encodeURIComponent(ticket.subject)}`)} className="p-4 hover:bg-slate-50 transition-colors cursor-pointer group">
+                  <div className="flex justify-between items-start mb-1">
+                    <span className="text-[10px] font-mono text-slate-400 group-hover:text-[#005c53]">#{ticket.id}</span>
+                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold border ${ticket.status === "Resolved" ? "bg-green-50 text-green-700 border-green-200" : ticket.status === "In Progress" ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-blue-50 text-blue-700 border-blue-200"}`}>
+                      {ticket.status}
+                    </span>
+                  </div>
+                  <h5 className="text-sm font-semibold text-slate-800 line-clamp-1 mb-1">{ticket.subject}</h5>
+                  <p className="text-xs text-slate-500">Updated {ticket.updatedAt}</p>
                 </div>
-                <h5 className="text-sm font-semibold text-slate-800 line-clamp-1 mb-1">GST Portal Sync Failing for new client</h5>
-                <p className="text-xs text-slate-500">Updated Oct 24, 2023</p>
-              </div>
-              
-              {/* Ticket 2 */}
-              <div className="p-4 hover:bg-slate-50 transition-colors cursor-pointer group">
-                <div className="flex justify-between items-start mb-1">
-                  <span className="text-[10px] font-mono text-slate-400 group-hover:text-[#005c53]">#TCK-9014</span>
-                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                    In Progress
-                  </span>
-                </div>
-                <h5 className="text-sm font-semibold text-slate-800 line-clamp-1 mb-1">Billing invoice format customization</h5>
-                <p className="text-xs text-slate-500">Updated Today at 9:15 AM</p>
-              </div>
+              ))}
             </div>
           </div>
         </div>

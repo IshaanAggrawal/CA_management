@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import Image from "next/image";
+import { useEffect, useState } from "react";
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<"profile" | "keys" | "integrations">("profile");
+  const [isSaved, setIsSaved] = useState(false);
   
   // API Keys state
   const [apiKeys, setApiKeys] = useState([
@@ -37,9 +39,19 @@ export default function SettingsPage() {
     setApiKeys([...apiKeys, newKey]);
   };
 
+  const handleCopyPrefix = async (prefix: string) => {
+    await navigator.clipboard.writeText(prefix);
+  };
+
   const handleRevokeKey = (id: number) => {
     setApiKeys(apiKeys.filter(key => key.id !== id));
   };
+
+  useEffect(() => {
+    if (!isSaved) return;
+    const timer = setTimeout(() => setIsSaved(false), 2000);
+    return () => clearTimeout(timer);
+  }, [isSaved]);
 
   return (
     <div className="space-y-6">
@@ -92,9 +104,11 @@ export default function SettingsPage() {
           </div>
           <div className="p-6 space-y-6">
             <div className="flex flex-col sm:flex-row items-center gap-6 pb-6 border-b border-slate-100">
-              <img
+              <Image
                 src="/images/img-10.jpg"
                 alt="Aditya Sharma"
+                width={80}
+                height={80}
                 className="w-20 h-20 rounded-full object-cover border-2 border-slate-200 shadow-sm"
               />
               <div className="text-center sm:text-left space-y-2">
@@ -150,8 +164,8 @@ export default function SettingsPage() {
             </div>
             
             <div className="pt-4 flex justify-end">
-              <button className="px-5 py-2.5 bg-[#005c53] hover:bg-[#004841] text-white rounded-lg font-semibold text-sm shadow-sm transition-all cursor-pointer">
-                Save Profile Changes
+              <button onClick={() => setIsSaved(true)} className="px-5 py-2.5 bg-[#005c53] hover:bg-[#004841] text-white rounded-lg font-semibold text-sm shadow-sm transition-all cursor-pointer">
+                {isSaved ? "Saved" : "Save Profile Changes"}
               </button>
             </div>
           </div>
@@ -189,7 +203,11 @@ export default function SettingsPage() {
                 {apiKeys.map((key) => (
                   <tr key={key.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-6 py-4 font-bold text-slate-900">{key.name}</td>
-                    <td className="px-6 py-4 font-mono text-xs text-slate-500">{key.prefix}</td>
+                    <td className="px-6 py-4 font-mono text-xs text-slate-500">
+                      <button onClick={() => handleCopyPrefix(key.prefix)} className="hover:underline cursor-pointer text-left">
+                        {key.prefix}
+                      </button>
+                    </td>
                     <td className="px-6 py-4 font-medium text-slate-500">{key.created}</td>
                     <td className="px-6 py-4">
                       <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-teal-50 text-teal-700 border border-teal-200">
@@ -256,6 +274,16 @@ export default function SettingsPage() {
                 </div>
               </div>
             ))}
+          </div>
+
+          <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex items-center justify-between gap-4">
+            <div>
+              <h3 className="font-bold text-slate-900 text-base">Automation Center</h3>
+              <p className="text-xs text-slate-400 mt-1">Open calendar automation and reminder settings from here.</p>
+            </div>
+            <button onClick={() => setActiveTab("integrations")} className="px-4 py-2 bg-[#005c53] text-white rounded-lg font-semibold text-xs">
+              Review Integrations
+            </button>
           </div>
         </div>
       )}

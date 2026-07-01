@@ -1,11 +1,30 @@
 import { prisma } from "@/lib/db";
 import DashboardClient from "./DashboardClient";
 
+type DashboardDeadlineRecord = {
+  id: string;
+  title: string;
+  priority: "LOW" | "MEDIUM" | "HIGH";
+  deadline: Date | null;
+  client: { name: string | null } | null;
+};
+
 export default async function DashboardPage() {
   const recentAssignments = await prisma.assignment.findMany({
     include: { client: true, user: true },
     orderBy: { id: "desc" },
     take: 5
+  });
+
+  const allAssignments = await prisma.assignment.findMany({
+    select: {
+      id: true,
+      title: true,
+      status: true,
+      priority: true,
+      deadline: true,
+      createdAt: true,
+    }
   });
 
   const upcomingDeadlines = await prisma.assignment.findMany({
@@ -17,7 +36,17 @@ export default async function DashboardPage() {
     },
     include: { client: true },
     orderBy: { deadline: "asc" }
-  });
+  }) as DashboardDeadlineRecord[];
+
+  const normalizedUpcomingDeadlines = upcomingDeadlines
+    .filter((assignment) => assignment.deadline !== null)
+    .map((assignment) => ({
+      id: assignment.id,
+      title: assignment.title,
+      priority: assignment.priority,
+      deadline: assignment.deadline!,
+      client: assignment.client ? { name: assignment.client.name } : null,
+    }));
 
   const totalAssignments = await prisma.assignment.count();
   const activeAssignments = await prisma.assignment.count({
@@ -27,7 +56,8 @@ export default async function DashboardPage() {
   return (
     <DashboardClient 
       recentAssignments={recentAssignments} 
-      upcomingDeadlines={upcomingDeadlines}
+      upcomingDeadlines={normalizedUpcomingDeadlines}
+      allAssignments={allAssignments}
       metrics={{ totalAssignments, activeAssignments }}
     />
   );
