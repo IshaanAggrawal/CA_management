@@ -1,5 +1,8 @@
 "use client";
 
+import { useState } from "react";
+import { createInvoice } from "@/lib/actions/billing-actions";
+
 type BillingInvoice = {
   id: string;
   amount: number;
@@ -20,9 +23,26 @@ type BillingMetrics = {
 type BillingClientProps = {
   invoices?: BillingInvoice[];
   metrics: BillingMetrics;
+  clients?: { id: string; name: string }[];
 };
 
-export default function BillingClient({ invoices = [], metrics }: BillingClientProps) {
+export default function BillingClient({ invoices = [], metrics, clients = [] }: BillingClientProps) {
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleCreateInvoice = async (formData: FormData) => {
+    setIsSaving(true);
+    try {
+      await createInvoice(formData);
+      setIsCreateOpen(false);
+    } catch (error) {
+      console.error(error);
+      alert("Error creating invoice. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <>
       {/* Page Header */}
@@ -31,7 +51,7 @@ export default function BillingClient({ invoices = [], metrics }: BillingClientP
           <h2 className="font-display-lg text-display-lg text-primary">Billing & Invoicing</h2>
           <p className="font-body-md text-body-md text-on-surface-variant">Manage client receivables and financial reporting.</p>
         </div>
-        <button className="bg-secondary text-on-secondary px-6 py-2.5 rounded-lg font-title-lg text-title-lg flex items-center gap-2 hover:shadow-md transition-all active:scale-95 cursor-pointer">
+        <button onClick={() => setIsCreateOpen(true)} className="bg-secondary text-on-secondary px-6 py-2.5 rounded-lg font-title-lg text-title-lg flex items-center gap-2 hover:shadow-md transition-all active:scale-95 cursor-pointer">
           <span className="material-symbols-outlined">add</span>
           Generate New Invoice
         </button>
@@ -271,6 +291,42 @@ export default function BillingClient({ invoices = [], metrics }: BillingClientP
           </div>
         </div>
       </div>
+
+      {isCreateOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in">
+          <form action={handleCreateInvoice} className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col">
+            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
+              <h2 className="text-lg font-bold text-slate-900">Generate New Invoice</h2>
+              <button type="button" onClick={() => setIsCreateOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Client</label>
+                <select name="clientId" required className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#005c53] bg-white">
+                  <option value="">Select client</option>
+                  {clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Amount (₹)</label>
+                <input name="amount" type="number" step="0.01" min="1" required className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#005c53]" placeholder="e.g. 5000" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Due Date</label>
+                <input name="dueDate" type="date" required className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#005c53] bg-white" />
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
+              <button type="button" onClick={() => setIsCreateOpen(false)} className="px-4 py-2 font-bold text-slate-600 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer">Cancel</button>
+              <button type="submit" disabled={isSaving} className="px-6 py-2 bg-primary hover:opacity-90 text-white font-bold rounded-lg shadow-sm transition-colors cursor-pointer flex items-center justify-center min-w-[120px] disabled:opacity-80 disabled:cursor-not-allowed">
+                {isSaving ? <span className="material-symbols-outlined text-[18px] animate-spin">refresh</span> : "Generate"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </>
   );
 }

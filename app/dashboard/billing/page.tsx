@@ -51,9 +51,15 @@ export default async function BillingPage() {
     
   const collectionRate = totalBilled > 0 ? (totalCollected / totalBilled) * 100 : 0;
 
+  const clients = await prisma.client.findMany({
+    select: { id: true, name: true },
+    orderBy: { name: "asc" }
+  });
+
   return (
     <BillingClient 
       invoices={invoices} 
+      clients={clients}
       metrics={{
         outstandingPayments,
         billedThisMonth,
