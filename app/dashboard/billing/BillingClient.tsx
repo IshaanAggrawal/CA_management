@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { createInvoice } from "@/lib/actions/billing-actions";
+import { createInvoice, deleteInvoice, updateInvoiceStatus } from "@/lib/actions/billing-actions";
 
 type BillingInvoice = {
   id: string;
@@ -18,6 +18,7 @@ type BillingMetrics = {
   billedThisMonth: number;
   invoicesThisMonth: number;
   collectionRate: number;
+  billedGrowth: number;
 };
 
 type BillingClientProps = {
@@ -29,6 +30,7 @@ type BillingClientProps = {
 export default function BillingClient({ invoices = [], metrics, clients = [] }: BillingClientProps) {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUpdatingId, setIsUpdatingId] = useState<string | null>(null);
 
   const handleCreateInvoice = async (formData: FormData) => {
     setIsSaving(true);
@@ -41,6 +43,44 @@ export default function BillingClient({ invoices = [], metrics, clients = [] }: 
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this invoice?")) return;
+    setIsUpdatingId(id);
+    try {
+      await deleteInvoice(id);
+    } catch (e: any) {
+      alert(e.message || "Failed to delete");
+    } finally {
+      setIsUpdatingId(null);
+    }
+  };
+
+  const handleMarkAsPaid = async (id: string) => {
+    setIsUpdatingId(id);
+    try {
+      await updateInvoiceStatus(id, "PAID");
+    } catch (e: any) {
+      alert(e.message || "Failed to update");
+    } finally {
+      setIsUpdatingId(null);
+    }
+  };
+
+  const handleExportCSV = () => {
+    if (invoices.length === 0) return alert("No invoices to export");
+    const headers = "ID,Client,Amount,Due Date,Status\n";
+    const rows = invoices.map(inv => 
+      `${inv.id},"${inv.client?.name || ''}",${inv.amount},${new Date(inv.dueDate).toISOString().split('T')[0]},${inv.status}`
+    ).join("\n");
+    const blob = new Blob([headers + rows], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "invoices_export.csv";
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -90,9 +130,9 @@ export default function BillingClient({ invoices = [], metrics, clients = [] }: 
               <span className="material-symbols-outlined text-[28px]">description</span>
             </div>
           </div>
-          <div className="flex items-center gap-2 text-on-tertiary-container font-label-sm text-label-sm">
-            <span className="material-symbols-outlined text-[16px]">check_circle</span>
-            <span>{metrics.invoicesThisMonth} invoices generated</span>
+          <div className={`flex items-center gap-2 font-label-sm text-label-sm ${metrics.billedGrowth >= 0 ? "text-emerald-600" : "text-error"}`}>
+            <span className="material-symbols-outlined text-[16px]">{metrics.billedGrowth >= 0 ? "trending_up" : "trending_down"}</span>
+            <span>{Math.abs(metrics.billedGrowth).toFixed(1)}% vs last month</span>
           </div>
           <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity">
             <span className="material-symbols-outlined text-[120px]">receipt_long</span>
@@ -128,7 +168,7 @@ export default function BillingClient({ invoices = [], metrics, clients = [] }: 
               <span className="material-symbols-outlined text-[18px]">filter_list</span>
               Filter
             </button>
-            <button className="px-3 py-1.5 border border-outline-variant rounded-md text-on-surface-variant font-label-md text-label-md flex items-center gap-1 hover:bg-surface-container transition-colors cursor-pointer">
+            <button onClick={handleExportCSV} className="px-3 py-1.5 border border-outline-variant rounded-md text-on-surface-variant font-label-md text-label-md flex items-center gap-1 hover:bg-surface-container transition-colors cursor-pointer">
               <span className="material-symbols-outlined text-[18px]">download</span>
               Export CSV
             </button>
@@ -182,14 +222,20 @@ export default function BillingClient({ invoices = [], metrics, clients = [] }: 
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        {invoice.status !== "PAID" && (
-                          <button className="p-1.5 text-error hover:bg-error-container rounded-md transition-colors cursor-pointer" title="Send Reminder">
-                            <span className="material-symbols-outlined text-[20px]">notification_important</span>
-                          </button>
+                        {isUpdatingId === invoice.id ? (
+                          <span className="text-xs text-slate-400">Updating...</span>
+                        ) : (
+                          <>
+                            {invoice.status !== "PAID" && (
+                              <button onClick={() => handleMarkAsPaid(invoice.id)} className="p-1.5 text-primary hover:bg-primary-container rounded-md transition-colors cursor-pointer" title="Mark as Paid">
+                                <span className="material-symbols-outlined text-[20px]">task_alt</span>
+                              </button>
+                            )}
+                            <button onClick={() => handleDelete(invoice.id)} className="p-1.5 text-error hover:bg-error-container rounded-md transition-colors cursor-pointer" title="Delete Invoice">
+                              <span className="material-symbols-outlined text-[20px]">delete</span>
+                            </button>
+                          </>
                         )}
-                        <button className="p-1.5 text-on-surface-variant hover:bg-surface-container-high rounded-md transition-colors cursor-pointer" title="Download PDF">
-                          <span className="material-symbols-outlined text-[20px]">download</span>
-                        </button>
                       </div>
                     </td>
                   </tr>
@@ -247,7 +293,7 @@ export default function BillingClient({ invoices = [], metrics, clients = [] }: 
             </div>
             <div className="flex flex-col items-center flex-1 group">
               <div className="w-full bg-secondary/60 rounded-t h-[90%] group-hover:bg-secondary transition-colors relative">
-                <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-primary text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">₹68L</div>
+                <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-primary text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">₹{metrics.billedThisMonth >= 100000 ? (metrics.billedThisMonth / 100000).toFixed(1) + "L" : metrics.billedThisMonth}</div>
               </div>
               <span className="font-label-sm text-label-sm mt-2 font-bold text-primary">Oct</span>
             </div>

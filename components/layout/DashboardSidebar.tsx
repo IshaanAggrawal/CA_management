@@ -6,7 +6,7 @@ import { useState } from "react";
 import { SignOutButton } from "@clerk/nextjs";
 import GlobalQuickAddMenu from "./GlobalQuickAddMenu";
 
-export default function DashboardSidebar() {
+export default function DashboardSidebar({ role = "STAFF" }: { role?: "ADMIN" | "STAFF" }) {
   const pathname = usePathname();
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
 
@@ -17,7 +17,7 @@ export default function DashboardSidebar() {
     { href: "/dashboard/calendar", label: "Calendar", icon: "calendar_today" },
     { href: "/dashboard/billing", label: "Billing", icon: "payments" },
     { href: "/dashboard/documents", label: "Documents", icon: "description" },
-    { href: "/dashboard/staff", label: "Staff", icon: "badge" },
+    ...(role === "ADMIN" ? [{ href: "/dashboard/staff", label: "Staff", icon: "badge" }] : []),
   ];
 
   const footerItems = [

@@ -53,12 +53,61 @@ export default async function DashboardPage() {
     where: { status: { not: "COMPLETED" } }
   });
 
+  // NEW METRICS
+
+  // Staff Workload
+  const staffWorkloadRaw = await prisma.assignment.groupBy({
+    by: ['userId'],
+    _count: { id: true },
+    where: { status: { not: "COMPLETED" }, userId: { not: null } }
+  });
+  
+  // Need to get names for the userIds
+  const users = await prisma.user.findMany({
+    where: { id: { in: staffWorkloadRaw.map(s => s.userId as string) } },
+    select: { id: true, name: true }
+  });
+  const staffWorkload = staffWorkloadRaw.map(s => ({
+    name: users.find(u => u.id === s.userId)?.name || "Unknown",
+    activeAssignments: s._count.id
+  }));
+
+  // Billing and Growth
+  const allInvoices = await prisma.invoice.findMany({
+    select: { amount: true, createdAt: true, status: true }
+  });
+  
+  const toAmountNumber = (amount: any) => typeof amount === "number" ? amount : amount.toNumber();
+  const totalBilling = allInvoices.reduce((sum, inv) => sum + toAmountNumber(inv.amount), 0);
+  
+  const now = new Date();
+  const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+  const billingThisMonth = allInvoices
+    .filter(inv => inv.createdAt >= currentMonthStart)
+    .reduce((sum, inv) => sum + toAmountNumber(inv.amount), 0);
+    
+  const billingLastMonth = allInvoices
+    .filter(inv => inv.createdAt >= previousMonthStart && inv.createdAt < currentMonthStart)
+    .reduce((sum, inv) => sum + toAmountNumber(inv.amount), 0);
+
+  const newClientsThisMonth = await prisma.client.count({
+    where: { createdAt: { gte: currentMonthStart } }
+  });
+  const newClientsLastMonth = await prisma.client.count({
+    where: { createdAt: { gte: previousMonthStart, lt: currentMonthStart } }
+  });
+
   return (
     <DashboardClient 
       recentAssignments={recentAssignments} 
       upcomingDeadlines={normalizedUpcomingDeadlines}
       allAssignments={allAssignments}
       metrics={{ totalAssignments, activeAssignments }}
+      billing={{ totalBilling, billingThisMonth, billingLastMonth }}
+      growth={{ newClientsThisMonth, newClientsLastMonth }}
+      staffWorkload={staffWorkload}
     />
   );
 }

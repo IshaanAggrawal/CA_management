@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 import AssignmentsClient from "./AssignmentsClient";
 
 export default async function AssignmentsPage() {
-  const [assignments, clients, users] = await Promise.all([
+  const [assignments, clients, users, activityLogs] = await Promise.all([
     prisma.assignment.findMany({
       include: {
         client: true,
@@ -12,7 +12,13 @@ export default async function AssignmentsPage() {
     }),
     prisma.client.findMany({ orderBy: { name: "asc" } }),
     prisma.user.findMany({ orderBy: { name: "asc" } }),
+    prisma.activityLog.findMany({
+      where: { entityType: "ASSIGNMENT" },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+      include: { user: true }
+    }),
   ]);
 
-  return <AssignmentsClient initialAssignments={assignments} clients={clients} users={users} />;
+  return <AssignmentsClient initialAssignments={assignments} clients={clients} users={users} initialLogs={activityLogs} />;
 }

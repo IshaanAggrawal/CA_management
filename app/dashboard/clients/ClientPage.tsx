@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { createClient } from "@/lib/actions/client-actions";
+import { createClient, bulkDeleteClients } from "@/lib/actions/client-actions";
 
 type ClientEntityType = "CORPORATE" | "INDIVIDUAL" | "LLP" | "OTHER";
 type ClientStatus = "ACTIVE" | "PENDING_KYC" | "INACTIVE";
@@ -45,6 +45,8 @@ export default function ClientsDirectoryClient({ initialClients }: ClientsDirect
   const [isFilterExpanded, setIsFilterExpanded] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingAI, setIsLoadingAI] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const partnerOptions = Array.from(new Set(initialClients.map((client) => client.partnerName).filter(Boolean))) as string[];
   const cityOptions = Array.from(new Set(initialClients.map((client) => client.city).filter(Boolean))) as string[];
@@ -100,6 +102,35 @@ export default function ClientsDirectoryClient({ initialClients }: ClientsDirect
       console.error(error);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filteredClients.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredClients.map(c => c.id));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    if (selectedIds.includes(id)) {
+      setSelectedIds(selectedIds.filter(selectedId => selectedId !== id));
+    } else {
+      setSelectedIds([...selectedIds, id]);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!confirm(`Are you sure you want to delete ${selectedIds.length} clients?`)) return;
+    setIsDeleting(true);
+    try {
+      await bulkDeleteClients(selectedIds);
+      setSelectedIds([]);
+    } catch (e: any) {
+      alert(e.message || "Failed to delete clients");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -199,6 +230,16 @@ export default function ClientsDirectoryClient({ initialClients }: ClientsDirect
         </div>
 
         <div className="flex items-center gap-3 w-full lg:w-auto justify-end">
+          {selectedIds.length > 0 && (
+            <button
+              onClick={handleBulkDelete}
+              disabled={isDeleting}
+              className="flex items-center gap-2 px-4 py-2.5 bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 rounded-lg font-semibold text-sm transition-all cursor-pointer disabled:opacity-50"
+            >
+              <span className="material-symbols-outlined text-lg">delete</span>
+              {isDeleting ? "Deleting..." : `Delete (${selectedIds.length})`}
+            </button>
+          )}
           <button
             onClick={() => setIsFilterExpanded(!isFilterExpanded)}
             className={`flex items-center gap-2 px-4 py-2.5 border rounded-lg font-semibold text-sm transition-all cursor-pointer ${isFilterExpanded ? "border-[#005c53] text-[#005c53] bg-teal-50" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}
@@ -254,7 +295,12 @@ export default function ClientsDirectoryClient({ initialClients }: ClientsDirect
             <thead>
               <tr className="bg-slate-50/75 border-b border-slate-200 text-slate-400 text-[11px] font-bold uppercase tracking-wider">
                 <th className="px-6 py-4 w-10">
-                  <input type="checkbox" className="rounded border-slate-350 text-[#005c53] focus:ring-[#005c53]" />
+                  <input 
+                    type="checkbox" 
+                    checked={selectedIds.length === filteredClients.length && filteredClients.length > 0} 
+                    onChange={toggleSelectAll} 
+                    className="rounded border-slate-350 text-[#005c53] focus:ring-[#005c53] cursor-pointer" 
+                  />
                 </th>
                 <th className="px-6 py-4">Client Name</th>
                 <th className="px-6 py-4">Entity</th>
@@ -278,7 +324,12 @@ export default function ClientsDirectoryClient({ initialClients }: ClientsDirect
                 filteredClients.map((client) => (
                   <tr key={client.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-6 py-4">
-                      <input type="checkbox" className="rounded border-slate-350 text-[#005c53] focus:ring-[#005c53]" />
+                      <input 
+                        type="checkbox" 
+                        checked={selectedIds.includes(client.id)}
+                        onChange={() => toggleSelect(client.id)}
+                        className="rounded border-slate-350 text-[#005c53] focus:ring-[#005c53] cursor-pointer" 
+                      />
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-col">

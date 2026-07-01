@@ -1,6 +1,6 @@
 import DashboardSidebar from "@/components/layout/DashboardSidebar";
 import DashboardHeader from "@/components/layout/DashboardHeader";
-import { currentUser } from "@clerk/nextjs/server";
+import { currentUser, clerkClient } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import type { UserRole } from "@prisma/client";
@@ -20,25 +20,39 @@ export default async function DashboardLayout({
   const user = await currentUser();
   if (!user) redirect("/login");
 
-  const role = user.publicMetadata?.role === "ADMIN" ? "ADMIN" : "STAFF";
+  let dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+  
+  if (!dbUser) {
+    dbUser = await prisma.user.create({
+      data: {
+        id: user.id,
+        email: user.emailAddresses[0]?.emailAddress || "",
+        name: `${user.firstName || ""} ${user.lastName || ""}`.trim() || "User",
+        role: (user.publicMetadata?.role === "ADMIN" ? "ADMIN" : "STAFF") as UserRole,
+      }
+    });
+  } else {
+    dbUser = await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        email: user.emailAddresses[0]?.emailAddress || "",
+        name: `${user.firstName || ""} ${user.lastName || ""}`.trim() || "User",
+      }
+    });
+  }
 
-  // Sync Clerk user to our Prisma Database
-  await prisma.user.upsert({
-    where: { id: user.id },
-    update: { 
-      email: user.emailAddresses[0]?.emailAddress || "",
-      name: `${user.firstName || ""} ${user.lastName || ""}`.trim() || "User",
-    },
-    create: {
-      id: user.id,
-      email: user.emailAddresses[0]?.emailAddress || "",
-      name: `${user.firstName || ""} ${user.lastName || ""}`.trim() || "User",
-      role: role as UserRole,
-    }
-  });
+  // Self-heal: If database role differs from Clerk, update Clerk to match DB
+  if (dbUser.role !== user.publicMetadata?.role) {
+    const client = await clerkClient();
+    await client.users.updateUserMetadata(user.id, {
+      publicMetadata: { role: dbUser.role }
+    });
+  }
+
+  const role = dbUser.role;
   return (
     <div className="bg-background text-on-surface min-h-screen">
-      <DashboardSidebar />
+      <DashboardSidebar role={role as "ADMIN" | "STAFF"} />
       <DashboardHeader />
       {/* Main Content Canvas */}
       <main className="ml-[260px] p-6 max-w-[calc(1440px-260px)] min-h-[calc(100vh-64px)]">

@@ -40,7 +40,7 @@ export async function createAssignment(formData: FormData) {
     throw new Error("Deadline is invalid");
   }
 
-  await prisma.assignment.create({
+  const assignment = await prisma.assignment.create({
     data: {
       title,
       description: normalizeOptional(description),
@@ -50,6 +50,16 @@ export async function createAssignment(formData: FormData) {
       clientId,
       userId: normalizeOptional(userId),
     },
+  });
+
+  await prisma.activityLog.create({
+    data: {
+      action: "CREATED",
+      entityType: "ASSIGNMENT",
+      entityId: assignment.id,
+      details: `Created assignment "${title}"`,
+      userId: user.id
+    }
   });
 
   revalidatePath("/dashboard/assignments");
@@ -65,9 +75,24 @@ export async function updateAssignmentStatus(id: string, newStatus: AssignmentSt
     throw new Error("Invalid assignment status");
   }
 
+  const assignment = await prisma.assignment.findUnique({ where: { id } });
+  if (!assignment) throw new Error("Assignment not found");
+
+  const oldStatus = assignment.status;
+
   await prisma.assignment.update({
     where: { id },
     data: { status: newStatus }
+  });
+
+  await prisma.activityLog.create({
+    data: {
+      action: "UPDATED",
+      entityType: "ASSIGNMENT",
+      entityId: id,
+      details: `Status changed from ${oldStatus.replace("_", " ")} to ${newStatus.replace("_", " ")}`,
+      userId: user.id
+    }
   });
 
   revalidatePath("/dashboard/assignments");
@@ -104,9 +129,23 @@ export async function deleteAssignment(id: string) {
   const user = await currentUser();
   if (!user) throw new Error("Unauthorized");
 
-  await prisma.assignment.delete({
-    where: { id },
-  });
+  const assignment = await prisma.assignment.findUnique({ where: { id } });
+  
+  if (assignment) {
+    await prisma.assignment.delete({
+      where: { id },
+    });
+
+    await prisma.activityLog.create({
+      data: {
+        action: "DELETED",
+        entityType: "ASSIGNMENT",
+        entityId: id,
+        details: `Deleted assignment "${assignment.title}"`,
+        userId: user.id
+      }
+    });
+  }
 
   revalidatePath("/dashboard/assignments");
   revalidatePath("/dashboard");

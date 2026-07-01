@@ -33,7 +33,7 @@ export async function createClient(formData: FormData) {
 
   const entityType = ENTITY_TYPES.includes(entityTypeRaw) ? entityTypeRaw : "OTHER";
 
-  await prisma.client.create({
+  const client = await prisma.client.create({
     data: {
       name,
       entityType,
@@ -45,6 +45,42 @@ export async function createClient(formData: FormData) {
       email: normalizeOptional(email),
       phone: normalizeOptional(phone),
     },
+  });
+
+  await prisma.activityLog.create({
+    data: {
+      action: "CREATED",
+      entityType: "CLIENT",
+      entityId: client.id,
+      details: `Created client "${name}"`,
+      userId: user.id
+    }
+  });
+
+  revalidatePath("/dashboard/clients");
+  revalidatePath("/dashboard");
+}
+
+export async function bulkDeleteClients(ids: string[]) {
+  const user = await currentUser();
+  if (!user) throw new Error("Unauthorized");
+  // Basic RBAC: only ADMIN can delete
+  if (user.publicMetadata?.role === "STAFF") throw new Error("Unauthorized");
+
+  await prisma.client.deleteMany({
+    where: {
+      id: { in: ids }
+    }
+  });
+
+  await prisma.activityLog.create({
+    data: {
+      action: "DELETED",
+      entityType: "CLIENT",
+      entityId: "bulk",
+      details: `Deleted ${ids.length} clients`,
+      userId: user.id
+    }
   });
 
   revalidatePath("/dashboard/clients");

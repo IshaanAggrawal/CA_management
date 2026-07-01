@@ -26,6 +26,22 @@ type DashboardMetrics = {
   totalAssignments: number;
 };
 
+type DashboardBilling = {
+  totalBilling: number;
+  billingThisMonth: number;
+  billingLastMonth: number;
+};
+
+type DashboardGrowth = {
+  newClientsThisMonth: number;
+  newClientsLastMonth: number;
+};
+
+type DashboardStaffWorkload = {
+  name: string;
+  activeAssignments: number;
+};
+
 type DashboardHistoryItem = {
   id: string;
   title: string;
@@ -61,7 +77,23 @@ function CustomTooltip({ active, payload, label }: ChartTooltipProps) {
   return null;
 }
 
-export default function DashboardClient({ recentAssignments, upcomingDeadlines, allAssignments, metrics }: { recentAssignments: DashboardAssignment[]; upcomingDeadlines: DashboardDeadline[]; allAssignments: DashboardHistoryItem[]; metrics: DashboardMetrics }) {
+export default function DashboardClient({ 
+  recentAssignments, 
+  upcomingDeadlines, 
+  allAssignments, 
+  metrics,
+  billing = { totalBilling: 0, billingThisMonth: 0, billingLastMonth: 0 },
+  growth = { newClientsThisMonth: 0, newClientsLastMonth: 0 },
+  staffWorkload = []
+}: { 
+  recentAssignments: DashboardAssignment[]; 
+  upcomingDeadlines: DashboardDeadline[]; 
+  allAssignments: DashboardHistoryItem[]; 
+  metrics: DashboardMetrics;
+  billing?: DashboardBilling;
+  growth?: DashboardGrowth;
+  staffWorkload?: DashboardStaffWorkload[];
+}) {
   const router = useRouter();
   const [chartPeriod, setChartPeriod] = useState("6");
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
@@ -160,11 +192,11 @@ export default function DashboardClient({ recentAssignments, upcomingDeadlines, 
             <div className="flex gap-10">
               <div>
                 <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest mb-1">Total Billing (YTD)</p>
-                <p className="text-xl font-bold text-slate-900">₹72.4L</p>
+                <p className="text-xl font-bold text-slate-900">₹{(billing.totalBilling / 100000).toFixed(1)}L</p>
               </div>
               <div>
                 <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest mb-1">Achievement</p>
-                <p className="text-xl font-bold text-[#005c53]">92.4%</p>
+                <p className="text-xl font-bold text-[#005c53]">{(billing.totalBilling > 0 ? 100 : 0)}%</p>
               </div>
             </div>
             <button 
@@ -208,7 +240,7 @@ export default function DashboardClient({ recentAssignments, upcomingDeadlines, 
             <div>
               <h3 className="text-slate-500 text-[11px] font-bold uppercase tracking-wider mb-1">Firm Billables</h3>
               <div className="flex items-baseline gap-2">
-                <p className="text-2xl font-bold text-slate-900">₹18.4L</p>
+                <p className="text-2xl font-bold text-slate-900">₹{(billing.billingThisMonth / 100000).toFixed(1)}L</p>
                 <span className="text-slate-500 font-bold text-xs">This Month</span>
               </div>
             </div>
@@ -317,37 +349,28 @@ export default function DashboardClient({ recentAssignments, upcomingDeadlines, 
               <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 bg-slate-100 rounded-full border border-slate-200"></span> Capacity</div>
             </div>
           </div>
-          <div className="space-y-6">
-            <div>
-              <div className="flex justify-between text-xs font-semibold mb-2">
-                <span className="text-slate-900">Rohan K. <span className="text-slate-400 font-medium">(Team Lead)</span></span>
-                <span className="text-slate-500 font-bold">92%</span>
-              </div>
-              <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden flex border border-slate-200/50">
-                <div className="h-full bg-[#005c53]" style={{ width: "70%" }}></div>
-                <div className="h-full bg-[#008f81]" style={{ width: "22%" }}></div>
-              </div>
-            </div>
-            <div>
-              <div className="flex justify-between text-xs font-semibold mb-2">
-                <span className="text-slate-900">Sneha J. <span className="text-slate-400 font-medium">(Senior Associate)</span></span>
-                <span className="text-slate-500 font-bold">65%</span>
-              </div>
-              <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden flex border border-slate-200/50">
-                <div className="h-full bg-[#005c53]" style={{ width: "45%" }}></div>
-                <div className="h-full bg-[#008f81]" style={{ width: "20%" }}></div>
-              </div>
-            </div>
-            <div>
-              <div className="flex justify-between text-xs font-semibold mb-2">
-                <span className="text-slate-900">Divya S. <span className="text-slate-400 font-medium">(Associate)</span></span>
-                <span className="text-slate-500 font-bold">88%</span>
-              </div>
-              <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden flex border border-slate-200/50">
-                <div className="h-full bg-[#005c53]" style={{ width: "60%" }}></div>
-                <div className="h-full bg-[#008f81]" style={{ width: "28%" }}></div>
-              </div>
-            </div>
+          <div className="space-y-6 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
+            {staffWorkload.length === 0 ? (
+              <p className="text-sm text-slate-500">No active staff assignments.</p>
+            ) : (
+              staffWorkload.map((staff, i) => {
+                const totalActive = staff.activeAssignments;
+                const capacity = 10; // Hardcoded max capacity for demo purposes
+                const percentage = Math.min(Math.round((totalActive / capacity) * 100), 100);
+                
+                return (
+                  <div key={i}>
+                    <div className="flex justify-between text-xs font-semibold mb-2">
+                      <span className="text-slate-900">{staff.name}</span>
+                      <span className="text-slate-500 font-bold">{totalActive} active</span>
+                    </div>
+                    <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden flex border border-slate-200/50">
+                      <div className="h-full bg-[#005c53]" style={{ width: `${percentage}%` }}></div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
         
@@ -372,7 +395,7 @@ export default function DashboardClient({ recentAssignments, upcomingDeadlines, 
           <div className="mt-6 p-5 bg-[#005c53] rounded-xl text-white shadow-md relative overflow-hidden">
             <div className="relative z-10">
               <h4 className="font-bold text-sm mb-1">Practice Growth</h4>
-              <p className="text-xs text-teal-100 mb-4 leading-relaxed">You have 12 new leads since Monday.</p>
+              <p className="text-xs text-teal-100 mb-4 leading-relaxed">You have {growth.newClientsThisMonth} new clients this month.</p>
               <button 
                 onClick={handleLoadCRM} 
                 disabled={isLoadingCRM}

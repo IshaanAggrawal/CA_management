@@ -47,11 +47,14 @@ model User {
   id         String        @id // Maps to Clerk User ID
   email      String        @unique
   name       String
+  jobTitle   String?       // E.g., "Senior Partner", "Manager", "Associate"
   role       UserRole      @default(STAFF)
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @default(now()) @updatedAt
   
   assignments Assignment[]
+  activityLogs ActivityLog[]
+  documents   Document[]
 }
 
 model Client {
@@ -71,6 +74,7 @@ model Client {
 
   assignments Assignment[] 
   invoices    Invoice[]
+  documents   Document[]
 }
 
 model Assignment {
@@ -108,4 +112,30 @@ model Invoice {
   @@index([clientId])
   @@index([status])
   @@index([dueDate])
+}
+
+model ActivityLog {
+  id          String     @id @default(cuid())
+  action      String     // e.g. "CREATED", "UPDATED", "DELETED"
+  entityType  String     // e.g. "ASSIGNMENT", "CLIENT"
+  entityId    String
+  details     String?    // e.g. "Status changed from TODO to IN_PROGRESS"
+  createdAt   DateTime   @default(now())
+  
+  userId      String?
+  user        User?      @relation(fields: [userId], references: [id])
+}
+
+model Document {
+  id          String     @id @default(cuid())
+  name        String
+  url         String
+  size        Int?       // in bytes
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  
+  clientId    String
+  client      Client     @relation(fields: [clientId], references: [id])
+  userId      String?
+  user        User?      @relation(fields: [userId], references: [id])
 }

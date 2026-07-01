@@ -1,16 +1,37 @@
 import { prisma } from "@/lib/db";
 import StaffClient from "./StaffClient";
+import { currentUser } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
 
 export default async function StaffPage() {
-  const users = await prisma.user.findMany({
-    include: {
-      assignments: {
-        where: {
-          status: { not: "COMPLETED" }
-        }
-      }
-    }
-  });
+  const user = await currentUser();
+  if (!user) redirect("/");
 
-  return <StaffClient users={users} />;
+  const currentUserId = user.id;
+  const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+  const currentUserRole = dbUser?.role || "STAFF";
+
+  if (currentUserRole !== "ADMIN") {
+    redirect("/dashboard");
+  }
+
+  const [users, pendingAllocations] = await Promise.all([
+    prisma.user.findMany({
+      include: {
+        assignments: {
+          where: {
+            status: { not: "COMPLETED" }
+          }
+        }
+      },
+      orderBy: { createdAt: "asc" }
+    }),
+    prisma.assignment.findMany({
+      where: { userId: null },
+      include: { client: true },
+      orderBy: { deadline: "asc" }
+    })
+  ]);
+
+  return <StaffClient users={users} currentUserId={currentUserId} currentUserRole={currentUserRole} pendingAllocations={pendingAllocations} />;
 }

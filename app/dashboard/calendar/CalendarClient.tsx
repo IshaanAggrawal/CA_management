@@ -20,7 +20,7 @@ type CalendarAssignment = {
 
 export default function CalendarClient({ assignments = [] }: { assignments: CalendarAssignment[] }) {
   const router = useRouter();
-  
+
   // Create events based on assignments
   const currentEvents = assignments.map(a => {
     const d = new Date(a.deadline);
@@ -29,7 +29,7 @@ export default function CalendarClient({ assignments = [] }: { assignments: Cale
     if (a.title.toLowerCase().includes("tax") || a.title.toLowerCase().includes("itr")) type = "income";
     if (a.title.toLowerCase().includes("tds")) type = "tds";
     if (a.title.toLowerCase().includes("roc")) type = "roc";
-    
+
     return {
       id: a.id,
       date: d.getDate(),
@@ -300,7 +300,7 @@ export default function CalendarClient({ assignments = [] }: { assignments: Cale
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex rounded-lg overflow-hidden border border-slate-200 shadow-sm">
             {(["Day", "Week", "Month"] as const).map(v => (
-              <button 
+              <button
                 key={v}
                 onClick={() => setView(v)}
                 className={`px-4 py-2 font-semibold text-xs transition-colors border-r border-slate-200 last:border-0 cursor-pointer ${view === v ? 'bg-[#005c53] text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}
@@ -309,12 +309,12 @@ export default function CalendarClient({ assignments = [] }: { assignments: Cale
               </button>
             ))}
           </div>
-          <button onClick={() => router.push("/dashboard/search?q=calendar") } className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg font-semibold text-xs text-slate-700 hover:bg-slate-50 transition-colors shadow-sm cursor-pointer">
+          <button onClick={() => router.push("/dashboard/search?q=calendar")} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg font-semibold text-xs text-slate-700 hover:bg-slate-50 transition-colors shadow-sm cursor-pointer">
             <span className="material-symbols-outlined text-[16px]">filter_list</span> Filter
           </button>
         </div>
       </div>
-      
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Calendar Section */}
         <div className="lg:col-span-8 xl:col-span-9 space-y-6">
@@ -329,7 +329,7 @@ export default function CalendarClient({ assignments = [] }: { assignments: Cale
                 <span className="material-symbols-outlined">chevron_right</span>
               </button>
             </div>
-            
+
             <div className="flex flex-wrap gap-4">
               <span className="flex items-center gap-1.5 text-xs font-bold text-slate-600 uppercase tracking-wider">
                 <span className="w-2.5 h-2.5 rounded-full bg-[#FF5722]"></span> GST
@@ -345,7 +345,7 @@ export default function CalendarClient({ assignments = [] }: { assignments: Cale
               </span>
             </div>
           </div>
-          
+
           {view === "Month" ? (
             <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
               <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50/80">
@@ -365,20 +365,20 @@ export default function CalendarClient({ assignments = [] }: { assignments: Cale
             renderWeekView()
           )}
         </div>
-        
+
         {/* Side Panels (Right Column) */}
         <div className="lg:col-span-4 xl:col-span-3 space-y-6">
           {/* Deadline Details Panel */}
           <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-base text-slate-900">
-                {selectedDate ? `${MONTH_NAMES[month].substring(0,3)} ${String(selectedDate).padStart(2, '0')}, ${year}` : 'Select a Date'}
+                {selectedDate ? `${MONTH_NAMES[month].substring(0, 3)} ${String(selectedDate).padStart(2, '0')}, ${year}` : 'Select a Date'}
               </h3>
               <span className="text-xs px-2 py-1 bg-slate-100 text-slate-600 font-bold rounded-lg border border-slate-200">
                 {selectedDate ? currentEvents.filter(e => e.date === selectedDate && e.month === month && e.year === year).length : 0} Filings
               </span>
             </div>
-            
+
             {selectedDate && currentEvents.filter(e => e.date === selectedDate && e.month === month && e.year === year).length > 0 ? (
               <div className="space-y-4 max-h-[350px] overflow-y-auto custom-scrollbar pr-2">
                 {currentEvents.filter(e => e.date === selectedDate && e.month === month && e.year === year).map(event => (
@@ -402,12 +402,12 @@ export default function CalendarClient({ assignments = [] }: { assignments: Cale
                 <p className="text-sm text-slate-500 font-medium">No deadlines for this date.</p>
               </div>
             )}
-            
+
             <button onClick={() => router.push("/dashboard/assignments")} className="w-full mt-5 py-2.5 border-2 border-[#005c53] text-[#005c53] font-bold text-sm rounded-lg hover:bg-teal-50 transition-all cursor-pointer">
               View All Filings
             </button>
           </div>
-          
+
           {/* Automated Reminders Panel */}
           <div className="bg-[#005c53] text-white rounded-xl p-5 shadow-md relative overflow-hidden">
             <div className="relative z-10">

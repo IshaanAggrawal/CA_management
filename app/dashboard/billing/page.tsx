@@ -44,6 +44,16 @@ export default async function BillingPage() {
     .filter((invoice) => invoice.dueDate >= currentMonthStart)
     .reduce((sum: number, invoice) => sum + toAmountNumber(invoice.amount), 0);
 
+  const lastMonthStart = new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1);
+  const lastMonthEnd = new Date(new Date().getFullYear(), new Date().getMonth(), 0);
+  const billedLastMonth = invoices
+    .filter((invoice) => invoice.dueDate >= lastMonthStart && invoice.dueDate <= lastMonthEnd)
+    .reduce((sum: number, invoice) => sum + toAmountNumber(invoice.amount), 0);
+  
+  const billedGrowth = billedLastMonth > 0 
+    ? ((billedThisMonth - billedLastMonth) / billedLastMonth) * 100 
+    : (billedThisMonth > 0 ? 100 : 0);
+
   const totalBilled = invoices.reduce((sum: number, invoice) => sum + toAmountNumber(invoice.amount), 0);
   const totalCollected = invoices
     .filter((invoice) => invoice.status === "PAID")
@@ -63,6 +73,7 @@ export default async function BillingPage() {
       metrics={{
         outstandingPayments,
         billedThisMonth,
+        billedGrowth,
         invoicesThisMonth: invoices.filter((invoice) => invoice.dueDate >= currentMonthStart).length,
         collectionRate
       }}

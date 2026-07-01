@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { createAssignment, exportAssignmentsCSV, updateAssignmentStatus, deleteAssignment } from "@/lib/actions/assignment-actions";
 
 type AssignmentStatus = "TODO" | "IN_PROGRESS" | "REVIEW" | "COMPLETED";
@@ -21,10 +22,19 @@ type AssignmentRow = {
 type AssignmentClientOption = { id: string; name: string };
 type AssignmentUserOption = { id: string; name: string };
 
+type ActivityLog = {
+  id: string;
+  action: string;
+  details: string | null;
+  createdAt: Date;
+  user?: { name: string } | null;
+};
+
 type AssignmentsClientProps = {
   initialAssignments: AssignmentRow[];
   clients: AssignmentClientOption[];
   users: AssignmentUserOption[];
+  initialLogs?: ActivityLog[];
 };
 
 const columns: Array<{ title: string; status: AssignmentStatus; border: string; bg: string }> = [
@@ -36,11 +46,26 @@ const columns: Array<{ title: string; status: AssignmentStatus; border: string; 
 
 type FilterMode = "ALL" | "TODAY" | "NEXT_7_DAYS" | "OVERDUE";
 
-export default function AssignmentsClient({ initialAssignments, clients, users }: AssignmentsClientProps) {
+export default function AssignmentsClient({ initialAssignments, clients, users, initialLogs = [] }: AssignmentsClientProps) {
+  const router = useRouter();
   const [now] = useState(() => Date.now());
-  const [view, setView] = useState<"list" | "kanban">("list");
+  const [view, setView] = useState<"list" | "kanban" | "activity">("kanban");
   const [assignments, setAssignments] = useState<AssignmentRow[]>(initialAssignments);
+  const [logs, setLogs] = useState<ActivityLog[]>(initialLogs);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+
+  // Auto-polling for real-time updates
+  useEffect(() => {
+    setAssignments(initialAssignments);
+    setLogs(initialLogs);
+  }, [initialAssignments, initialLogs]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      router.refresh();
+    }, 5000); // Poll every 5s
+    return () => clearInterval(interval);
+  }, [router]);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null);
@@ -218,6 +243,12 @@ export default function AssignmentsClient({ initialAssignments, clients, users }
             >
               <span className="material-symbols-outlined text-[18px]">view_kanban</span> Kanban
             </button>
+            <button
+              onClick={() => setView("activity")}
+              className={`px-3 py-1.5 rounded-md font-label-md text-label-md flex items-center gap-2 cursor-pointer transition-all ${view === "activity" ? "bg-surface-container-lowest text-primary shadow-sm font-bold" : "text-on-surface-variant hover:text-primary"}`}
+            >
+              <span className="material-symbols-outlined text-[18px]">history</span> Activity
+            </button>
           </div>
           <button
             onClick={() => setIsFilterOpen(!isFilterOpen)}
@@ -321,181 +352,211 @@ export default function AssignmentsClient({ initialAssignments, clients, users }
         </div>
       </div>
 
-      {view === "list" ? (
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden mb-8">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-surface-container-low border-b border-outline-variant">
-                  <th className="px-6 py-4 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider w-1/3">Assignment & Client</th>
-                  <th className="px-6 py-4 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Team</th>
-                  <th className="px-6 py-4 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-4 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Due Date</th>
-                  <th className="px-6 py-4 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Time Left</th>
-                  <th className="px-6 py-4"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-outline-variant">
-                {filteredAssignments.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-slate-500">No assignments match the current filters.</td>
+      {view === "list" && (
+        <div className="mb-8">
+          <div className="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-surface-container-low border-b border-outline-variant">
+                    <th className="px-6 py-4 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider w-1/3">Assignment & Client</th>
+                    <th className="px-6 py-4 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Team</th>
+                    <th className="px-6 py-4 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-4 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Due Date</th>
+                    <th className="px-6 py-4 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Time Left</th>
+                    <th className="px-6 py-4"></th>
                   </tr>
-                ) : filteredAssignments.map((task) => {
-                  const progress = getProgress(task.status);
-                  return (
-                    <tr key={task.id} className="hover:bg-surface-container-low transition-colors group">
-                      <td className="px-6 py-4">
-                        <div className="flex flex-col">
-                          <span className={`font-title-lg text-title-lg text-primary ${task.status === "COMPLETED" ? "text-opacity-50 line-through" : ""}`}>{task.title}</span>
-                          <span className="font-body-sm text-body-sm text-on-surface-variant">{task.client?.name || "No Client"}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center -space-x-2">
-                          {task.user ? <div className="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-[10px] font-bold bg-secondary-container text-on-secondary-container" title={task.user.name}>{task.user.name.substring(0, 2).toUpperCase()}</div> : <div className="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-[10px] font-bold bg-slate-200 text-slate-500">-</div>}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-label-md font-semibold ${getStatusColor(task.status)}`}>
-                          {task.status.replace("_", " ")}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 font-body-md text-body-md text-on-surface-variant">{task.deadline ? new Date(task.deadline).toLocaleDateString() : "-"}</td>
-                      <td className="px-6 py-4">
-                        {task.status === "COMPLETED" ? (
-                          <div className="flex items-center gap-2">
-                            <span className="material-symbols-outlined text-on-tertiary-container text-base">check_circle</span>
-                            <span className="font-body-md text-body-md font-bold text-on-tertiary-container">Completed</span>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <span className="font-body-md text-body-md font-bold text-on-surface">{progress}%</span>
-                            <div className="w-16 h-1 bg-surface-container rounded-full overflow-hidden">
-                              <div className="h-full bg-primary" style={{ width: `${progress}%` }}></div>
-                            </div>
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-right relative">
-                        <button onClick={() => setMenuOpenId(menuOpenId === task.id ? null : task.id)} className="text-on-surface-variant hover:text-primary transition-colors cursor-pointer p-1">
-                          <span className="material-symbols-outlined">more_vert</span>
-                        </button>
-                        {menuOpenId === task.id && (
-                          <div className="absolute right-6 top-10 bg-white border border-slate-200 shadow-lg rounded-lg py-1 z-10 w-32">
-                            <button
-                              onClick={() => handleDeleteAssignment(task.id)}
-                              disabled={isDeleting === task.id}
-                              className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-slate-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {isDeleting === task.id ? "Deleting..." : "Delete"}
-                            </button>
-                          </div>
-                        )}
-                      </td>
+                </thead>
+                <tbody className="divide-y divide-outline-variant">
+                  {filteredAssignments.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-12 text-center text-slate-500">No assignments match the current filters.</td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          <div className="px-6 py-4 border-t border-outline-variant flex items-center justify-between bg-surface-container-lowest">
-            <p className="text-label-sm text-on-surface-variant">Showing 1 to {filteredAssignments.length} of {assignments.length} results</p>
-            <div className="flex items-center gap-2">
-              <button className="p-1 border border-outline-variant rounded hover:bg-surface-container transition-colors disabled:opacity-30 cursor-not-allowed" disabled>
-                <span className="material-symbols-outlined text-sm">chevron_left</span>
-              </button>
-              <span className="text-label-md text-primary font-bold px-2">1</span>
-              <button className="p-1 border border-outline-variant rounded hover:bg-surface-container transition-colors cursor-pointer">
-                <span className="material-symbols-outlined text-sm">chevron_right</span>
-              </button>
+                  ) : filteredAssignments.map((task) => {
+                    const progress = getProgress(task.status);
+                    return (
+                      <tr key={task.id} className="hover:bg-surface-container-low transition-colors group">
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col">
+                            <span className={`font-title-lg text-title-lg text-primary ${task.status === "COMPLETED" ? "text-opacity-50 line-through" : ""}`}>{task.title}</span>
+                            <span className="font-body-sm text-body-sm text-on-surface-variant">{task.client?.name || "No Client"}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center -space-x-2">
+                            {task.user ? <div className="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-[10px] font-bold bg-secondary-container text-on-secondary-container" title={task.user.name}>{task.user.name.substring(0, 2).toUpperCase()}</div> : <div className="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-[10px] font-bold bg-slate-200 text-slate-500">-</div>}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-label-md font-semibold ${getStatusColor(task.status)}`}>
+                            {task.status.replace("_", " ")}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 font-body-md text-body-md text-on-surface-variant">{task.deadline ? new Date(task.deadline).toLocaleDateString() : "-"}</td>
+                        <td className="px-6 py-4">
+                          {task.status === "COMPLETED" ? (
+                            <div className="flex items-center gap-2">
+                              <span className="material-symbols-outlined text-on-tertiary-container text-base">check_circle</span>
+                              <span className="font-body-md text-body-md font-bold text-on-tertiary-container">Completed</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <span className="font-body-md text-body-md font-bold text-on-surface">{progress}%</span>
+                              <div className="w-16 h-1 bg-surface-container rounded-full overflow-hidden">
+                                <div className="h-full bg-primary" style={{ width: `${progress}%` }}></div>
+                              </div>
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-right relative">
+                          <button onClick={() => setMenuOpenId(menuOpenId === task.id ? null : task.id)} className="text-on-surface-variant hover:text-primary transition-colors cursor-pointer p-1">
+                            <span className="material-symbols-outlined">more_vert</span>
+                          </button>
+                          {menuOpenId === task.id && (
+                            <div className="absolute right-6 top-10 bg-white border border-slate-200 shadow-lg rounded-lg py-1 z-10 w-32">
+                              <button
+                                onClick={() => handleDeleteAssignment(task.id)}
+                                disabled={isDeleting === task.id}
+                                className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-slate-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {isDeleting === task.id ? "Deleting..." : "Delete"}
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div className="px-6 py-4 border-t border-outline-variant flex items-center justify-between bg-surface-container-lowest">
+              <p className="text-label-sm text-on-surface-variant">Showing 1 to {filteredAssignments.length} of {assignments.length} results</p>
+              <div className="flex items-center gap-2">
+                <button className="p-1 border border-outline-variant rounded hover:bg-surface-container transition-colors disabled:opacity-30 cursor-not-allowed" disabled>
+                  <span className="material-symbols-outlined text-sm">chevron_left</span>
+                </button>
+                <span className="text-label-md text-primary font-bold px-2">1</span>
+                <button className="p-1 border border-outline-variant rounded hover:bg-surface-container transition-colors cursor-pointer">
+                  <span className="material-symbols-outlined text-sm">chevron_right</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8 items-start">
-          {columns.map((column) => {
-            const tasksInColumn = filteredAssignments.filter((assignment) => assignment.status === column.status);
-            return (
-              <div
-                key={column.status}
-                onDragOver={(event) => event.preventDefault()}
-                onDrop={(event) => handleDrop(event, column.status)}
-                className={`rounded-xl border border-outline-variant/60 shadow-sm flex flex-col min-h-[450px] p-4 ${column.bg} transition-colors ${draggedTaskId ? "hover:border-primary hover:bg-primary/5" : ""}`}
-              >
-                <div className={`border-t-4 ${column.border} pt-2 pb-3 mb-4 flex justify-between items-center`}>
-                  <h4 className="font-title-lg text-title-lg text-primary">{column.title}</h4>
-                  <span className="px-2 py-0.5 rounded bg-surface-container text-xs font-bold text-on-surface-variant">{tasksInColumn.length}</span>
-                </div>
+      )}
 
-                <div className="flex flex-col gap-3 flex-1 overflow-y-auto">
-                  {tasksInColumn.length === 0 ? (
-                    <div className="flex-1 flex items-center justify-center border-2 border-dashed border-outline-variant/50 rounded-lg p-6 text-center pointer-events-none">
-                      <p className="text-label-sm text-on-surface-variant/60">Drop tasks here</p>
-                    </div>
-                  ) : (
-                    tasksInColumn.map((task) => {
-                      const progress = getProgress(task.status);
-                      return (
-                        <div
-                          key={task.id}
-                          draggable
-                          onDragStart={() => setDraggedTaskId(task.id)}
-                          className={`bg-white border border-outline-variant/60 rounded-xl p-4 shadow-sm hover:shadow-md hover:border-primary/40 transition-all group flex flex-col justify-between cursor-grab active:cursor-grabbing ${draggedTaskId === task.id ? "opacity-50 border-dashed scale-95" : ""} ${updatingTaskId === task.id ? "animate-pulse ring-2 ring-primary ring-offset-2" : ""}`}
-                        >
-                          <div>
-                            <div className="flex justify-between items-start gap-2 mb-2">
-                              <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold ${getStatusColor(task.status)}`}>
-                                {task.status.replace("_", " ")}
-                              </span>
-                              <div className="relative">
-                                <button onClick={() => setMenuOpenId(menuOpenId === task.id ? null : task.id)} className={`text-on-surface-variant transition-opacity cursor-pointer ${menuOpenId === task.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-                                  <span className="material-symbols-outlined text-base">more_vert</span>
-                                </button>
-                                {menuOpenId === task.id && (
-                                  <div className="absolute right-0 top-6 bg-white border border-slate-200 shadow-lg rounded-lg py-1 z-10 w-32">
-                                    <button
-                                      onClick={() => handleDeleteAssignment(task.id)}
-                                      disabled={isDeleting === task.id}
-                                      className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-slate-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                      {isDeleting === task.id ? "Deleting..." : "Delete"}
-                                    </button>
-                                  </div>
-                                )}
+      {view === "kanban" && (
+        <div className="mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 xl:gap-6 w-full">
+            {columns.map((column) => {
+              const tasksInColumn = filteredAssignments.filter((assignment) => assignment.status === column.status);
+              return (
+                <div
+                  key={column.status}
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={(event) => handleDrop(event, column.status)}
+                  className={`rounded-xl border border-outline-variant/60 shadow-sm flex flex-col min-h-[450px] max-h-[800px] p-4 ${column.bg} transition-colors ${draggedTaskId ? "hover:border-primary hover:bg-primary/5" : ""}`}
+                >
+                  <div className={`border-t-4 ${column.border} pt-2 pb-3 mb-4 flex justify-between items-center sticky top-0 bg-inherit z-10`}>
+                    <h4 className="font-title-lg text-title-lg text-primary">{column.title}</h4>
+                    <span className="px-2 py-0.5 rounded bg-surface-container text-xs font-bold text-on-surface-variant">{tasksInColumn.length}</span>
+                  </div>
+  
+                  <div className="flex flex-col gap-3 flex-1 overflow-y-auto custom-scrollbar pr-1 pb-4">
+                    {tasksInColumn.length === 0 ? (
+                      <div className="flex-1 flex items-center justify-center border-2 border-dashed border-outline-variant/50 rounded-lg p-6 text-center pointer-events-none">
+                        <p className="text-label-sm text-on-surface-variant/60">Drop tasks here</p>
+                      </div>
+                    ) : (
+                      tasksInColumn.map((task) => {
+                        return (
+                          <div
+                            key={task.id}
+                            draggable
+                            onDragStart={() => setDraggedTaskId(task.id)}
+                            className={`bg-white border border-outline-variant/60 rounded-xl p-4 shadow-sm hover:shadow-md hover:border-primary/40 transition-all group flex flex-col justify-between cursor-grab active:cursor-grabbing ${draggedTaskId === task.id ? "opacity-50 border-dashed scale-95" : ""} ${updatingTaskId === task.id ? "animate-pulse ring-2 ring-primary ring-offset-2" : ""}`}
+                          >
+                            <div>
+                              <div className="flex justify-between items-start gap-2 mb-2">
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold ${getStatusColor(task.status)}`}>
+                                  {task.status.replace("_", " ")}
+                                </span>
+                                <div className="relative">
+                                  <button onClick={() => setMenuOpenId(menuOpenId === task.id ? null : task.id)} className="text-on-surface-variant hover:text-primary transition-colors cursor-pointer p-0.5 -mr-1">
+                                    <span className="material-symbols-outlined text-[16px]">more_vert</span>
+                                  </button>
+                                  {menuOpenId === task.id && (
+                                    <div className="absolute right-0 top-6 bg-white border border-slate-200 shadow-lg rounded-lg py-1 z-20 w-32">
+                                      <button
+                                        onClick={() => handleDeleteAssignment(task.id)}
+                                        disabled={isDeleting === task.id}
+                                        className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-slate-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                      >
+                                        {isDeleting === task.id ? "Deleting..." : "Delete"}
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
+                              <h5 className="font-bold text-slate-800 text-sm leading-snug line-clamp-2">{task.title}</h5>
+                              <p className="text-xs text-slate-500 mt-1 line-clamp-1">{task.client?.name || "No Client"}</p>
                             </div>
-                            <h5 className={`font-title-lg text-title-lg text-primary mb-1 group-hover:text-primary-hover ${task.status === "COMPLETED" ? "text-opacity-50 line-through" : ""}`}>{task.title}</h5>
-                            <p className="text-body-sm text-on-surface-variant mb-4">{task.client?.name || "No Client"}</p>
-                          </div>
-
-                          <div className="border-t border-outline-variant/40 pt-3 flex items-center justify-between mt-2">
-                            <div className="flex items-center gap-1.5 text-slate-500">
-                              <span className="material-symbols-outlined text-sm">calendar_today</span>
-                              <span className="text-[11px] font-medium">{getTimeLeftLabel(task.deadline)}</span>
-                            </div>
-
-                            <div className="flex items-center -space-x-1.5">
-                              {task.user ? <div className="w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-[9px] font-bold bg-secondary-container text-on-secondary-container" title={task.user.name}>{task.user.name.substring(0, 2).toUpperCase()}</div> : <div className="w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-[9px] font-bold bg-slate-200 text-slate-500">-</div>}
-                            </div>
-                          </div>
-
-                          <div className="mt-3">
-                            <div className="flex justify-between text-[10px] uppercase tracking-wider text-slate-400 mb-1">
-                              <span>Progress</span>
-                              <span>{progress}%</span>
-                            </div>
-                            <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                              <div className="h-full bg-primary" style={{ width: `${progress}%` }}></div>
+                            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                              <div className="flex items-center gap-1.5">
+                                <span className="material-symbols-outlined text-[14px] text-slate-400">schedule</span>
+                                <span className="text-[10px] font-bold text-slate-500">{getTimeLeftLabel(task.deadline)}</span>
+                              </div>
+                              {task.user ? (
+                                <div className="w-6 h-6 rounded-full border border-slate-200 flex items-center justify-center text-[9px] font-bold bg-slate-100 text-slate-600" title={task.user.name}>
+                                  {task.user.name.substring(0, 2).toUpperCase()}
+                                </div>
+                              ) : (
+                                <div className="w-6 h-6 rounded-full border border-dashed border-slate-300 flex items-center justify-center bg-slate-50" title="Unassigned">
+                                  <span className="material-symbols-outlined text-[12px] text-slate-300">person_add</span>
+                                </div>
+                              )}
                             </div>
                           </div>
-                        </div>
-                      );
-                    })
-                  )}
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {view === "activity" && (
+        <div className="w-full bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col min-h-[500px] mb-8">
+          <div className="p-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+            <h3 className="font-bold text-slate-800 flex items-center gap-2">
+              <span className="material-symbols-outlined text-[20px] text-primary">history</span> Activity Feed
+            </h3>
+            <div className="flex gap-1">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Live</span>
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+            {logs.length === 0 ? (
+              <p className="text-sm text-slate-500 text-center py-4">No recent activity.</p>
+            ) : logs.map((log) => (
+              <div key={log.id} className="flex gap-3 items-start">
+                <div className="w-8 h-8 flex-shrink-0 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 text-primary font-bold text-xs">
+                  {log.user?.name ? log.user.name.substring(0,2).toUpperCase() : "AU"}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-slate-600 leading-tight">
+                    <span className="font-bold text-slate-800">{log.user?.name || "System"}</span> {log.details}
+                  </p>
+                  <p className="text-xs text-slate-400 mt-1 font-medium">{new Date(log.createdAt).toLocaleString()}</p>
                 </div>
               </div>
-            );
-          })}
+            ))}
+          </div>
         </div>
       )}
 
