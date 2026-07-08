@@ -83,6 +83,7 @@ model Firm {
   udins             Udin[]
   activityLogs      ActivityLog[]
   supportTickets    SupportTicket[]
+  invitations       Invitation[]
 }
 
 model User {
@@ -281,5 +282,29 @@ model Udin {
   assignmentId String?
   assignment   Assignment? @relation(fields: [assignmentId], references: [id])
 
+  @@index([firmId])
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  REVOKED
+}
+
+model Invitation {
+  id        String           @id @default(cuid())
+  email     String
+  role      UserRole
+  jobTitle  String?
+  status    InvitationStatus @default(PENDING)
+  
+  firmId    String
+  firm      Firm             @relation(fields: [firmId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  
+  @@index([email])
   @@index([firmId])
 }

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import type { UserRole } from "@prisma/client";
 import type { Metadata } from "next";
+import InvitationBanner from "./components/InvitationBanner";
 
 export const dynamic = "force-dynamic";
 
@@ -53,7 +54,7 @@ export default async function DashboardLayout({
         }
 
         // Create the user linked to the verified firm
-        return await tx.user.create({
+        const newUser = await tx.user.create({
           data: {
             id: user.id,
             email: user.emailAddresses[0]?.emailAddress || "",
@@ -62,6 +63,14 @@ export default async function DashboardLayout({
             firmId: finalFirmId
           }
         });
+
+        // Mark any pending invitations for this email as ACCEPTED
+        await tx.invitation.updateMany({
+          where: { email: newUser.email, status: "PENDING" },
+          data: { status: "ACCEPTED" }
+        });
+
+        return newUser;
       });
     } catch (error) {
       console.error("Failed to initialize user:", error);
@@ -76,30 +85,12 @@ export default async function DashboardLayout({
       );
     }
   } else {
-    // Check if the user was invited to a new firm via Clerk metadata
-    const pendingFirmId = user.publicMetadata?.firmId as string | undefined;
-    const pendingRole = user.publicMetadata?.role as UserRole | undefined;
-
-    let updatedFirmId = dbUser.firmId;
-    let updatedRole = dbUser.role;
-
-    if (pendingFirmId && pendingFirmId !== dbUser.firmId) {
-      // Validate the new firm exists before migrating them
-      const existingFirm = await prisma.firm.findUnique({ where: { id: pendingFirmId } });
-      if (existingFirm) {
-        updatedFirmId = pendingFirmId;
-        updatedRole = pendingRole || "STAFF";
-      }
-    }
-
-    // Update basic profile info on subsequent logins, and apply new firm/role if migrated
+    // Update basic profile info on subsequent logins
     dbUser = await prisma.user.update({
       where: { id: user.id },
       data: {
         email: user.emailAddresses[0]?.emailAddress || "",
-        name: `${user.firstName || ""} ${user.lastName || ""}`.trim() || "User",
-        firmId: updatedFirmId,
-        role: updatedRole
+        name: `${user.firstName || ""} ${user.lastName || ""}`.trim() || "User"
       }
     });
   }
@@ -121,13 +112,29 @@ export default async function DashboardLayout({
   }
 
   const role = dbUser.role;
+  
+  // Check for any pending invitations for the user
+  const pendingInvitation = await prisma.invitation.findFirst({
+    where: { email: dbUser.email, status: "PENDING" },
+    include: { firm: true }
+  });
+
   return (
     <div className="bg-background text-on-surface min-h-screen">
       <DashboardSidebar role={role as "ADMIN" | "STAFF"} />
       <DashboardHeader />
       {/* Main Content Canvas */}
-      <main className="ml-[260px] p-6 min-h-[calc(100vh-64px)]">
-        {children}
+      <main className="ml-[260px] min-h-[calc(100vh-64px)] flex flex-col">
+        {pendingInvitation && (
+          <InvitationBanner 
+            invitationId={pendingInvitation.id}
+            firmName={pendingInvitation.firm.name}
+            jobTitle={pendingInvitation.jobTitle || "Staff"}
+          />
+        )}
+        <div className="p-6 flex-1">
+          {children}
+        </div>
       </main>
     </div>
   );

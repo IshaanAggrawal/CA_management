@@ -1,7 +1,7 @@
 "use client";
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { changeUserRole, inviteStaff, deleteStaff, updateStaffProfile } from "@/lib/actions/staff-actions";
+import { changeUserRole, inviteStaff, deleteStaff, updateStaffProfile, revokeInvitation, resendInvitation } from "@/lib/actions/staff-actions";
 
 type StaffUser = {
   id: string;
@@ -16,12 +16,14 @@ export default function StaffClient({
   users = [],
   currentUserId,
   currentUserRole,
-  pendingAllocations = []
+  pendingAllocations = [],
+  invitations = []
 }: {
   users: StaffUser[],
   currentUserId: string,
   currentUserRole: string,
-  pendingAllocations?: any[]
+  pendingAllocations?: any[],
+  invitations?: any[]
 }) {
   const router = useRouter();
   
@@ -108,6 +110,31 @@ export default function StaffClient({
       }
     } catch (error: any) {
       alert(error.message || "Failed to delete staff.");
+    }
+  };
+
+  const handleRevoke = async (id: string) => {
+    if (!confirm("Are you sure you want to revoke this invitation?")) return;
+    try {
+      const res = await revokeInvitation(id);
+      if (res?.error) {
+        alert(res.error);
+      }
+    } catch (error: any) {
+      alert(error.message || "Failed to revoke invitation.");
+    }
+  };
+
+  const handleResend = async (id: string) => {
+    try {
+      const res = await resendInvitation(id);
+      if (res?.error) {
+        alert(res.error);
+      } else {
+        alert("Invitation resent successfully!");
+      }
+    } catch (error: any) {
+      alert(error.message || "Failed to resend invitation.");
     }
   };
 
@@ -266,6 +293,41 @@ export default function StaffClient({
               </tbody>
             </table>
           </div>
+
+          {/* Pending Invitations Section */}
+          {invitations && invitations.length > 0 && currentUserRole === "ADMIN" && (
+            <div className="mt-8 border-t border-outline-variant pt-6 px-6 pb-6">
+              <h4 className="font-title-md text-primary mb-4">Pending Invitations</h4>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead className="bg-surface-container-lowest">
+                    <tr className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider border-b border-outline-variant">
+                      <th className="px-6 py-3 font-semibold">Email</th>
+                      <th className="px-6 py-3 font-semibold">Role</th>
+                      <th className="px-6 py-3 font-semibold text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-outline-variant">
+                    {invitations.map((inv) => (
+                      <tr key={inv.id} className="hover:bg-surface-container-lowest transition-colors">
+                        <td className="px-6 py-4">
+                          <p className="font-label-md text-primary">{inv.email}</p>
+                          <p className="font-label-sm text-on-surface-variant text-[10px]">Invited: {new Date(inv.createdAt).toLocaleDateString()}</p>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="font-label-sm text-on-surface-variant">{inv.jobTitle || "Staff"} • {inv.role}</span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <button onClick={() => handleResend(inv.id)} className="text-secondary hover:text-primary font-label-md mr-4 cursor-pointer">Resend</button>
+                          <button onClick={() => handleRevoke(inv.id)} className="text-error hover:text-error-container font-label-md cursor-pointer">Revoke</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Pending Allocations (Side Panel) */}

@@ -18,6 +18,7 @@ export const metadata: Metadata = {
 };
 
 import { ClerkProvider } from '@clerk/nextjs'
+import { PostHogProvider } from '@/components/providers/PostHogProvider';
 
 export default function RootLayout({
   children,
@@ -30,7 +31,11 @@ export default function RootLayout({
         <head>
           <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" precedence="default" />
         </head>
-        <body className="min-h-full">{children}</body>
+        <body className="min-h-full">
+          <PostHogProvider>
+            {children}
+          </PostHogProvider>
+        </body>
       </html>
     </ClerkProvider>
   );

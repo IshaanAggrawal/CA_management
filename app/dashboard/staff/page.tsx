@@ -19,7 +19,7 @@ export default async function StaffPage() {
   const firmId = await getFirmId();
   if (!firmId) return null;
 
-  const [users, pendingAllocations] = await Promise.all([
+  const [users, pendingAllocations, invitations] = await Promise.all([
     prisma.user.findMany({
       where: { firmId },
       include: {
@@ -36,8 +36,12 @@ export default async function StaffPage() {
       where: { userId: null, firmId },
       include: { client: true },
       orderBy: { deadline: "asc" }
+    }),
+    prisma.invitation.findMany({
+      where: { firmId, status: "PENDING" },
+      orderBy: { createdAt: "desc" }
     })
   ]);
 
-  return <StaffClient users={users} currentUserId={currentUserId} currentUserRole={currentUserRole} pendingAllocations={pendingAllocations} />;
+  return <StaffClient users={users} currentUserId={currentUserId} currentUserRole={currentUserRole} pendingAllocations={pendingAllocations} invitations={invitations} />;
 }

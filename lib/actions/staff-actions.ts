@@ -4,6 +4,9 @@ import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { currentUser, clerkClient } from "@clerk/nextjs/server";
 import { getFirmId } from "@/lib/auth-utils";
+import { Resend } from "resend";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // Utility function to check admin rights
 async function requireAdmin() {
@@ -26,7 +29,7 @@ export async function inviteStaff(email: string, role: "ADMIN" | "STAFF", jobTit
   try {
     const { firmId } = await requireAdmin();
 
-    const firm = await prisma.firm.findUnique({ where: { id: firmId }, select: { planTier: true } });
+    const firm = await prisma.firm.findUnique({ where: { id: firmId }, select: { planTier: true, name: true } });
     if (!firm) throw new Error("Firm not found");
 
     const count = await prisma.user.count({ where: { firmId } });
@@ -43,14 +46,49 @@ export async function inviteStaff(email: string, role: "ADMIN" | "STAFF", jobTit
     }
 
     const client = await clerkClient();
-    await client.invitations.createInvitation({
-      emailAddress: email,
-      publicMetadata: {
-        role: role,
-        jobTitle: jobTitle,
-        firmId: firmId // Important so they join the same firm upon signup
+    
+    // Check if the user already exists in Clerk
+    const existingUsers = await client.users.getUserList({ emailAddress: [email] });
+    const userExists = existingUsers.data && existingUsers.data.length > 0;
+    
+    // Create the DB invitation
+    const invitation = await prisma.invitation.create({
+      data: {
+        email,
+        role,
+        jobTitle,
+        firmId
       }
     });
+
+    if (userExists) {
+      // User already exists. Send them a custom email using Resend to notify them.
+      // They will accept it via the UI banner when they log in.
+      const { data, error } = await resend.emails.send({
+        from: 'BVG Site <onboarding@resend.dev>',
+        to: email,
+        subject: `You have been invited to join ${firm.name}`,
+        html: `<p>Hello!</p>
+               <p>You have been invited to join <strong>${firm.name}</strong> as a <strong>${jobTitle} (${role})</strong>.</p>
+               <p>Please log in to your dashboard to accept or decline this invitation.</p>
+               <p><a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard">Go to Dashboard</a></p>`
+      });
+
+      if (error) {
+        console.error("Resend error:", error);
+      }
+    } else {
+      // Normal Clerk invitation for new users
+      await client.invitations.createInvitation({
+        emailAddress: email,
+        publicMetadata: {
+          role: role,
+          jobTitle: jobTitle,
+          firmId: firmId // Important so they join the same firm upon signup
+        },
+        ignoreExisting: true
+      });
+    }
 
     revalidatePath("/dashboard/staff");
     return { success: true };
@@ -144,5 +182,139 @@ export async function changeUserRole(userIdToChange: string, newRole: "ADMIN" | 
     return await updateStaffProfile(userIdToChange, user.name, user.jobTitle || "", newRole);
   } catch (error: any) {
     return { success: false, error: error.message || "Failed to change user role." };
+  }
+}
+
+export async function revokeInvitation(invitationId: string) {
+  try {
+    const { firmId } = await requireAdmin();
+    
+    await prisma.invitation.update({
+      where: { id: invitationId, firmId },
+      data: { status: "REVOKED" }
+    });
+
+    revalidatePath("/dashboard/staff");
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message || "Failed to revoke invitation." };
+  }
+}
+
+export async function resendInvitation(invitationId: string) {
+  try {
+    const { firmId } = await requireAdmin();
+    
+    const invitation = await prisma.invitation.findUnique({
+      where: { id: invitationId, firmId },
+      include: { firm: true }
+    });
+    if (!invitation || invitation.status !== "PENDING") throw new Error("Invalid or inactive invitation.");
+
+    const client = await clerkClient();
+    const existingUsers = await client.users.getUserList({ emailAddress: [invitation.email] });
+    const userExists = existingUsers.data && existingUsers.data.length > 0;
+
+    if (userExists) {
+      await resend.emails.send({
+        from: 'BVG Site <onboarding@resend.dev>',
+        to: invitation.email,
+        subject: `Reminder: You have been invited to join ${invitation.firm.name}`,
+        html: `<p>Hello!</p>
+               <p>This is a reminder that you have been invited to join <strong>${invitation.firm.name}</strong> as a <strong>${invitation.jobTitle} (${invitation.role})</strong>.</p>
+               <p>Please log in to your dashboard to accept or decline this invitation.</p>
+               <p><a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard">Go to Dashboard</a></p>`
+      });
+    } else {
+      // Clerk handles the email for generic invitations, but we can't easily "resend" a Clerk invite via their API 
+      // without recreating it. We'll just create a new one.
+      try {
+        await client.invitations.createInvitation({
+          emailAddress: invitation.email,
+          publicMetadata: {
+            role: invitation.role,
+            jobTitle: invitation.jobTitle,
+            firmId: invitation.firmId
+          },
+          ignoreExisting: true
+        });
+      } catch (e: any) {
+        // Ignore if they already have an active Clerk invite
+      }
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message || "Failed to resend invitation." };
+  }
+}
+
+export async function respondToInvitation(invitationId: string, action: "ACCEPT" | "DECLINE") {
+  try {
+    const user = await currentUser();
+    if (!user) throw new Error("Unauthorized");
+    
+    const userEmail = user.emailAddresses[0]?.emailAddress;
+    if (!userEmail) throw new Error("No email found.");
+
+    const invitation = await prisma.invitation.findUnique({
+      where: { id: invitationId }
+    });
+
+    if (!invitation || invitation.email !== userEmail || invitation.status !== "PENDING") {
+      throw new Error("Invalid or inactive invitation.");
+    }
+
+    if (action === "DECLINE") {
+      await prisma.invitation.update({
+        where: { id: invitationId },
+        data: { status: "DECLINED" }
+      });
+    } else {
+      // ACCEPT
+      await prisma.$transaction(async (tx) => {
+        // 1. Mark invitation as accepted
+        await tx.invitation.update({
+          where: { id: invitationId },
+          data: { status: "ACCEPTED" }
+        });
+
+        // 2. Unassign from old firm if any (optional, but good practice for migrations)
+        const oldDbUser = await tx.user.findUnique({ where: { id: user.id } });
+        if (oldDbUser?.firmId) {
+          await tx.assignment.updateMany({
+            where: { userId: user.id, firmId: oldDbUser.firmId },
+            data: { userId: null }
+          });
+        }
+
+        // 3. Move the user to the new firm
+        await tx.user.update({
+          where: { id: user.id },
+          data: {
+            firmId: invitation.firmId,
+            role: invitation.role,
+            jobTitle: invitation.jobTitle
+          }
+        });
+      });
+
+      // Update Clerk metadata
+      const client = await clerkClient();
+      await client.users.updateUserMetadata(user.id, {
+        publicMetadata: {
+          ...user.publicMetadata,
+          role: invitation.role,
+          jobTitle: invitation.jobTitle,
+          firmId: invitation.firmId
+        }
+      });
+    }
+
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/staff");
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message || "Failed to respond to invitation." };
   }
 }
