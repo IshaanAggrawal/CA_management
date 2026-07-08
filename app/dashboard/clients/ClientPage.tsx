@@ -97,10 +97,14 @@ export default function ClientsDirectoryClient({ initialClients }: ClientsDirect
   const handleSaveClient = async (formData: FormData) => {
     setIsSaving(true);
     try {
-      await createClient(formData);
+      const res = await createClient(formData);
+      if (res?.error) {
+        alert(res.error);
+        return;
+      }
       setIsModalOpen(false);
-    } catch (error) {
-      console.error(error);
+    } catch (error: any) {
+      alert(error.message || "Failed to create client");
     } finally {
       setIsSaving(false);
     }
@@ -126,7 +130,11 @@ export default function ClientsDirectoryClient({ initialClients }: ClientsDirect
     if (!confirm(`Are you sure you want to delete ${selectedIds.length} clients?`)) return;
     setIsDeleting(true);
     try {
-      await bulkDeleteClients(selectedIds);
+      const res = await bulkDeleteClients(selectedIds);
+      if (res?.error) {
+        alert(res.error);
+        return;
+      }
       setSelectedIds([]);
     } catch (e: any) {
       alert(e.message || "Failed to delete clients");

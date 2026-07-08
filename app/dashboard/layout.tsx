@@ -26,49 +26,80 @@ export default async function DashboardLayout({
     let initialFirmId = user.publicMetadata?.firmId as string | undefined;
     let initialRole = (user.publicMetadata?.role === "ADMIN" ? "ADMIN" : "STAFF") as UserRole;
 
-    dbUser = await prisma.$transaction(async (tx) => {
-      let finalFirmId = initialFirmId;
-      let finalRole = initialRole;
+    try {
+      dbUser = await prisma.$transaction(async (tx) => {
+        let finalFirmId = initialFirmId;
+        let finalRole = initialRole;
 
-      // Check if invited firm actually exists (it might have been deleted)
-      if (finalFirmId) {
-        const existingFirm = await tx.firm.findUnique({ where: { id: finalFirmId } });
-        if (!existingFirm) {
-          finalFirmId = undefined; // Fallback to creating a new firm
+        // Check if invited firm actually exists (it might have been deleted)
+        if (finalFirmId) {
+          const existingFirm = await tx.firm.findUnique({ where: { id: finalFirmId } });
+          if (!existingFirm) {
+            finalFirmId = undefined; // Fallback to creating a new firm
+          }
         }
-      }
 
-      // If no firm exists, create one and make them ADMIN
-      if (!finalFirmId) {
-        const firm = await tx.firm.create({
+        // If no firm exists, create one and make them ADMIN
+        if (!finalFirmId) {
+          const firm = await tx.firm.create({
+            data: {
+              name: `${user.firstName || "My"} Firm`,
+              planTier: "FREE",
+              subscriptionStatus: "ACTIVE",
+            }
+          });
+          finalFirmId = firm.id;
+          finalRole = "ADMIN";
+        }
+
+        // Create the user linked to the verified firm
+        return await tx.user.create({
           data: {
-            name: `${user.firstName || "My"} Firm`,
-            planTier: "FREE",
-            subscriptionStatus: "ACTIVE",
+            id: user.id,
+            email: user.emailAddresses[0]?.emailAddress || "",
+            name: `${user.firstName || ""} ${user.lastName || ""}`.trim() || "User",
+            role: finalRole,
+            firmId: finalFirmId
           }
         });
-        finalFirmId = firm.id;
-        finalRole = "ADMIN";
-      }
-
-      // Create the user linked to the verified firm
-      return await tx.user.create({
-        data: {
-          id: user.id,
-          email: user.emailAddresses[0]?.emailAddress || "",
-          name: `${user.firstName || ""} ${user.lastName || ""}`.trim() || "User",
-          role: finalRole,
-          firmId: finalFirmId
-        }
       });
-    });
+    } catch (error) {
+      console.error("Failed to initialize user:", error);
+      return (
+        <div className="flex h-screen items-center justify-center bg-background">
+          <div className="text-center space-y-4 p-8 bg-surface rounded-2xl shadow-sm border border-outline-variant max-w-md">
+            <span className="material-symbols-outlined text-4xl text-error">error</span>
+            <h1 className="text-xl font-bold text-on-surface">Account Setup Failed</h1>
+            <p className="text-on-surface-variant">We encountered an issue while setting up your workspace. Please refresh the page to try again, or contact support.</p>
+          </div>
+        </div>
+      );
+    }
   } else {
-    // Update basic profile info on subsequent logins
+    // Check if the user was invited to a new firm via Clerk metadata
+    const pendingFirmId = user.publicMetadata?.firmId as string | undefined;
+    const pendingRole = user.publicMetadata?.role as UserRole | undefined;
+
+    let updatedFirmId = dbUser.firmId;
+    let updatedRole = dbUser.role;
+
+    if (pendingFirmId && pendingFirmId !== dbUser.firmId) {
+      // Validate the new firm exists before migrating them
+      const existingFirm = await prisma.firm.findUnique({ where: { id: pendingFirmId } });
+      if (existingFirm) {
+        updatedFirmId = pendingFirmId;
+        updatedRole = pendingRole || "STAFF";
+      }
+    }
+
+    // Update basic profile info on subsequent logins, and apply new firm/role if migrated
     dbUser = await prisma.user.update({
       where: { id: user.id },
       data: {
         email: user.emailAddresses[0]?.emailAddress || "",
         name: `${user.firstName || ""} ${user.lastName || ""}`.trim() || "User",
+        firmId: updatedFirmId,
+        role: updatedRole
       }
     });
   }

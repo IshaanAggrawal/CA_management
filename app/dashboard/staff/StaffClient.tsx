@@ -57,11 +57,15 @@ export default function StaffClient({
     setIsSubmitting(true);
     const fd = new FormData(e.currentTarget);
     try {
-      await inviteStaff(
+      const res = await inviteStaff(
         fd.get("email") as string,
         fd.get("role") as "ADMIN" | "STAFF",
         fd.get("jobTitle") as string
       );
+      if (res?.error) {
+        alert(res.error);
+        return;
+      }
       setIsInviteModalOpen(false);
       alert("Invitation sent successfully!");
     } catch (error: any) {
@@ -77,12 +81,16 @@ export default function StaffClient({
     setIsSubmitting(true);
     const fd = new FormData(e.currentTarget);
     try {
-      await updateStaffProfile(
+      const res = await updateStaffProfile(
         editUser.id,
         fd.get("name") as string,
         fd.get("jobTitle") as string,
         fd.get("role") as "ADMIN" | "STAFF"
       );
+      if (res?.error) {
+        alert(res.error);
+        return;
+      }
       setEditUser(null);
     } catch (error: any) {
       alert(error.message || "Failed to update profile.");
@@ -94,7 +102,10 @@ export default function StaffClient({
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to completely remove this staff member? This cannot be undone.")) return;
     try {
-      await deleteStaff(id);
+      const res = await deleteStaff(id);
+      if (res?.error) {
+        alert(res.error);
+      }
     } catch (error: any) {
       alert(error.message || "Failed to delete staff.");
     }
