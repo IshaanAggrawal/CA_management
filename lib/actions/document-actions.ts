@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { currentUser } from "@clerk/nextjs/server";
+import { getFirmId } from "@/lib/auth-utils";
 
 export async function uploadDocument(formData: FormData) {
   const user = await currentUser();
@@ -22,6 +23,9 @@ export async function uploadDocument(formData: FormData) {
   const url = `https://fake-storage.com/${Date.now()}-${file.name}`;
   const size = file.size;
 
+  const firmId = await getFirmId();
+  if (!firmId) throw new Error("User does not belong to a firm");
+
   const doc = await prisma.document.create({
     data: {
       name,
@@ -29,9 +33,22 @@ export async function uploadDocument(formData: FormData) {
       size,
       direction,
       clientId,
-      userId: user.id
+      userId: user.id,
+      firmId
+    },
+    include: {
+      client: true
     }
   });
+
+  if (direction === "CLIENT_SHARED" && doc.client.email) {
+    const { sendEmailNotification } = await import("@/lib/notifications");
+    await sendEmailNotification(
+      doc.client.email,
+      "New Document Shared With You",
+      `<p>Hello ${doc.client.name},</p><p>A new document (<b>${name}</b>) has been shared with you.</p>`
+    );
+  }
 
   await prisma.activityLog.create({
     data: {
@@ -39,7 +56,8 @@ export async function uploadDocument(formData: FormData) {
       entityType: "DOCUMENT",
       entityId: doc.id,
       details: `Uploaded document "${name}"`,
-      userId: user.id
+      userId: user.id,
+      firmId
     }
   });
 
@@ -50,7 +68,10 @@ export async function deleteDocument(id: string) {
   const user = await currentUser();
   if (!user) throw new Error("Unauthorized");
 
-  const doc = await prisma.document.findUnique({ where: { id } });
+  const firmId = await getFirmId();
+  if (!firmId) throw new Error("Unauthorized");
+
+  const doc = await prisma.document.findUnique({ where: { id, firmId } });
   if (!doc) throw new Error("Not found");
 
   // Allow admins or the uploader to delete
@@ -64,7 +85,8 @@ export async function deleteDocument(id: string) {
       entityType: "DOCUMENT",
       entityId: id,
       details: `Deleted document "${doc.name}"`,
-      userId: user.id
+      userId: user.id,
+      firmId
     }
   });
 
@@ -86,6 +108,9 @@ export async function createDsc(formData: FormData) {
     throw new Error("Missing required fields");
   }
 
+  const firmId = await getFirmId();
+  if (!firmId) throw new Error("Unauthorized");
+
   await prisma.digitalSignature.create({
     data: {
       providerName,
@@ -93,6 +118,7 @@ export async function createDsc(formData: FormData) {
       clientId,
       issueDate: issueDate ? new Date(issueDate) : null,
       expiryDate: new Date(expiryDate),
+      firmId,
     }
   });
 
@@ -100,7 +126,8 @@ export async function createDsc(formData: FormData) {
 }
 
 export async function deleteDsc(id: string) {
-  await prisma.digitalSignature.delete({ where: { id } });
+  const firmId = await getFirmId();
+  await prisma.digitalSignature.delete({ where: { id, firmId: firmId || "" } });
   revalidatePath("/dashboard/documents");
 }
 
@@ -117,6 +144,9 @@ export async function createUdin(formData: FormData) {
     throw new Error("Missing required fields");
   }
 
+  const firmId = await getFirmId();
+  if (!firmId) throw new Error("Unauthorized");
+
   await prisma.udin.create({
     data: {
       udinNumber,
@@ -124,6 +154,7 @@ export async function createUdin(formData: FormData) {
       generatedAt: new Date(),
       clientId,
       assignmentId: assignmentId || null,
+      firmId
     }
   });
 
@@ -131,6 +162,7 @@ export async function createUdin(formData: FormData) {
 }
 
 export async function deleteUdin(id: string) {
-  await prisma.udin.delete({ where: { id } });
+  const firmId = await getFirmId();
+  await prisma.udin.delete({ where: { id, firmId: firmId || "" } });
   revalidatePath("/dashboard/documents");
 }

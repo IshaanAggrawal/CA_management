@@ -1,6 +1,27 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
 
 export default function LandingHeader() {
+  const [activeHash, setActiveHash] = useState("");
+
+  useEffect(() => {
+    setActiveHash(window.location.hash || "");
+    const handleHashChange = () => setActiveHash(window.location.hash || "");
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, []);
+
+  const getLinkClass = (hash: string) => {
+    const isActive = activeHash === hash || (!activeHash && hash === "");
+    return `text-sm font-medium transition-colors cursor-pointer ${
+      isActive
+        ? "text-[#A03B1E] border-b-2 border-[#A03B1E] pb-1 font-semibold"
+        : "text-slate-500 hover:text-[#A03B1E]"
+    }`;
+  };
+
   return (
     <header className="w-full top-0 sticky z-50 bg-white/90 backdrop-blur-md border-b border-slate-100 shadow-sm">
       <nav className="flex justify-between items-center max-w-7xl mx-auto px-6 md:px-12 py-4">
@@ -8,28 +29,16 @@ export default function LandingHeader() {
           CAPractice
         </Link>
         <div className="hidden md:flex gap-8 items-center">
-          <Link
-            className="text-sm font-semibold text-[#A03B1E] border-b-2 border-[#A03B1E] pb-1 hover:text-[#8a2f15] transition-colors cursor-pointer"
-            href="/"
-          >
+          <Link className={getLinkClass("")} href="/" onClick={() => setActiveHash("")}>
             Home
           </Link>
-          <Link
-            className="text-sm font-medium text-slate-500 hover:text-[#A03B1E] transition-colors cursor-pointer"
-            href="#features"
-          >
+          <Link className={getLinkClass("#features")} href="#features" onClick={() => setActiveHash("#features")}>
             Features
           </Link>
-          <Link
-            className="text-sm font-medium text-slate-500 hover:text-[#A03B1E] transition-colors cursor-pointer"
-            href="#pricing"
-          >
+          <Link className={getLinkClass("#pricing")} href="#pricing" onClick={() => setActiveHash("#pricing")}>
             Pricing
           </Link>
-          <Link
-            className="text-sm font-medium text-slate-500 hover:text-[#A03B1E] transition-colors cursor-pointer"
-            href="#about"
-          >
+          <Link className={getLinkClass("#about")} href="#about" onClick={() => setActiveHash("#about")}>
             About
           </Link>
         </div>

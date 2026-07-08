@@ -251,6 +251,9 @@ export default function BillingClient({ invoices = [], metrics, clients = [] }: 
                                 </button>
                               </>
                             )}
+                            <button onClick={() => window.open(`/invoice/${invoice.id}`, '_blank')} className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-md transition-colors cursor-pointer" title="Download PDF">
+                              <span className="material-symbols-outlined text-[20px]">download</span>
+                            </button>
                             <button onClick={() => handleDelete(invoice.id)} className="p-1.5 text-error hover:bg-error-container rounded-md transition-colors cursor-pointer" title="Delete Invoice">
                               <span className="material-symbols-outlined text-[20px]">delete</span>
                             </button>

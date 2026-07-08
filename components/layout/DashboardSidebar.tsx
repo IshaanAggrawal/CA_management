@@ -22,6 +22,7 @@ export default function DashboardSidebar({ role = "STAFF" }: { role?: "ADMIN" | 
   ];
 
   const footerItems = [
+    ...(role === "ADMIN" ? [{ href: "/dashboard/settings/subscription", label: "Billing & Plans", icon: "credit_card" }] : []),
     { href: "/dashboard/settings", label: "Settings", icon: "settings" },
     { href: "/dashboard/support", label: "Support", icon: "help" },
     { href: "/login", label: "Logout", icon: "logout" },

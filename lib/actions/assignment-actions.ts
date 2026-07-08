@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { currentUser } from "@clerk/nextjs/server";
+import { getFirmId } from "@/lib/auth-utils";
 
 type AssignmentStatus = "TODO" | "IN_PROGRESS" | "REVIEW" | "COMPLETED";
 type AssignmentPriority = "LOW" | "MEDIUM" | "HIGH";
@@ -20,6 +21,9 @@ const normalizeOptional = (value: string) => (value.length > 0 ? value : null);
 export async function createAssignment(formData: FormData) {
   const user = await currentUser();
   if (!user) throw new Error("Unauthorized");
+
+  const firmId = await getFirmId();
+  if (!firmId) throw new Error("Unauthorized: User does not belong to a firm");
 
   const title = getStringField(formData, "title");
   const description = getStringField(formData, "description");
@@ -49,6 +53,7 @@ export async function createAssignment(formData: FormData) {
       deadline,
       clientId,
       userId: normalizeOptional(userId),
+      firmId
     },
   });
 
@@ -58,7 +63,8 @@ export async function createAssignment(formData: FormData) {
       entityType: "ASSIGNMENT",
       entityId: assignment.id,
       details: `Created assignment "${title}"`,
-      userId: user.id
+      userId: user.id,
+      firmId
     }
   });
 
@@ -75,7 +81,10 @@ export async function updateAssignmentStatus(id: string, newStatus: AssignmentSt
     throw new Error("Invalid assignment status");
   }
 
-  const assignment = await prisma.assignment.findUnique({ where: { id } });
+  const firmId = await getFirmId();
+  if (!firmId) throw new Error("Unauthorized: User does not belong to a firm");
+
+  const assignment = await prisma.assignment.findUnique({ where: { id, firmId } });
   if (!assignment) throw new Error("Assignment not found");
 
   const oldStatus = assignment.status;
@@ -91,7 +100,8 @@ export async function updateAssignmentStatus(id: string, newStatus: AssignmentSt
       entityType: "ASSIGNMENT",
       entityId: id,
       details: `Status changed from ${oldStatus.replace("_", " ")} to ${newStatus.replace("_", " ")}`,
-      userId: user.id
+      userId: user.id,
+      firmId
     }
   });
 
@@ -103,7 +113,11 @@ export async function exportAssignmentsCSV() {
   const user = await currentUser();
   if (!user) throw new Error("Unauthorized");
 
+  const firmId = await getFirmId();
+  if (!firmId) throw new Error("Unauthorized: User does not belong to a firm");
+
   const assignments = await prisma.assignment.findMany({
+    where: { firmId },
     include: { client: true, user: true },
     orderBy: { deadline: "asc" }
   });
@@ -129,7 +143,10 @@ export async function deleteAssignment(id: string) {
   const user = await currentUser();
   if (!user) throw new Error("Unauthorized");
 
-  const assignment = await prisma.assignment.findUnique({ where: { id } });
+  const firmId = await getFirmId();
+  if (!firmId) throw new Error("Unauthorized: User does not belong to a firm");
+
+  const assignment = await prisma.assignment.findUnique({ where: { id, firmId } });
   
   if (assignment) {
     await prisma.assignment.delete({
@@ -142,7 +159,8 @@ export async function deleteAssignment(id: string) {
         entityType: "ASSIGNMENT",
         entityId: id,
         details: `Deleted assignment "${assignment.title}"`,
-        userId: user.id
+        userId: user.id,
+        firmId
       }
     });
   }

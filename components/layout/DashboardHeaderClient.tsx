@@ -19,7 +19,7 @@ export default function DashboardHeaderClient({ userName, userRole, UserButton }
   };
 
   return (
-    <header className="h-16 sticky top-0 z-40 bg-surface dark:bg-surface-dim border-b border-outline-variant dark:border-outline flex items-center justify-between px-6 w-full ml-[260px] max-w-[calc(1440px-260px)]">
+    <header className="h-16 sticky top-0 z-40 bg-surface dark:bg-surface-dim border-b border-outline-variant dark:border-outline flex items-center justify-between px-6 w-[calc(100%-260px)] ml-[260px]">
       <form onSubmit={handleSearchSubmit} className="flex items-center gap-4 flex-1 max-w-xl">
         <div className="relative w-full">
           <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-lg">search</span>

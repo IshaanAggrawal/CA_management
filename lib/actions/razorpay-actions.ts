@@ -11,8 +11,12 @@ const razorpay = new Razorpay({
 
 export async function generatePaymentLink(invoiceId: string) {
   try {
+    const { getFirmId } = await import("@/lib/auth-utils");
+    const firmId = await getFirmId();
+    if (!firmId) throw new Error("Unauthorized");
+
     const invoice = await prisma.invoice.findUnique({
-      where: { id: invoiceId },
+      where: { id: invoiceId, firmId },
       include: { client: true },
     });
 
@@ -43,6 +47,8 @@ export async function generatePaymentLink(invoiceId: string) {
       notes: {
         invoice_id: invoice.id,
       },
+      callback_url: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/dashboard/billing?success=true`,
+      callback_method: "get"
     };
 
     const paymentLink = await razorpay.paymentLink.create(paymentLinkRequest);
@@ -61,5 +67,27 @@ export async function generatePaymentLink(invoiceId: string) {
   } catch (error: any) {
     console.error("Razorpay Error:", error);
     throw new Error(error.message || "Failed to generate payment link");
+  }
+}
+
+export async function verifyInvoicePayment(paymentLinkId: string) {
+  try {
+    const paymentLink = await razorpay.paymentLink.fetch(paymentLinkId);
+    
+    if (paymentLink.status === "paid") {
+      const invoiceId = paymentLink.notes?.invoice_id as string | undefined;
+      
+      if (invoiceId) {
+        await prisma.invoice.update({
+          where: { id: invoiceId },
+          data: { status: "PAID" }
+        });
+        return true;
+      }
+    }
+    return false;
+  } catch (error) {
+    console.error("Failed to verify invoice payment link", error);
+    return false;
   }
 }

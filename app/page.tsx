@@ -55,7 +55,7 @@ export default function LandingPage() {
           <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center gap-12">
             <div className="flex-1 space-y-4">
               <span className="inline-block px-4 py-1.5 rounded-full bg-[#FFEBE5] text-[#FF5722] text-[13px] font-bold uppercase tracking-[0.1em]">
-                VERSION 2.0 NOW LIVE
+                PROAUDIT CA PLATFORM LIVE
               </span>
               <h1 className="text-[44px] md:text-[56px] font-bold leading-[1.1] tracking-[-0.02em] text-[#0f172a]">
                 Automate Your CA Practice.<br/><span className="text-[#FF5722]">Simplify Compliance.</span>
@@ -307,15 +307,117 @@ export default function LandingPage() {
           </div>
         </section>
         
+        {/* Pricing Section */}
+        <section id="pricing" className="py-24 px-8 bg-surface-container-lowest">
+          <div className="max-w-7xl mx-auto">
+            <div className="text-center mb-16 space-y-4">
+              <h2 className="text-4xl md:text-5xl font-bold text-black">Simple, Transparent Pricing</h2>
+              <p className="text-secondary text-lg max-w-2xl mx-auto">
+                Start for free, upgrade when you need more capacity.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+              {/* Free Plan */}
+              <div className="p-8 bg-white border border-outline-variant rounded-2xl flex flex-col hover:shadow-lg transition-shadow">
+                <h3 className="font-headline-md text-primary mb-2">Free</h3>
+                <div className="mb-6">
+                  <span className="text-4xl font-bold text-black">₹0</span>
+                  <span className="text-secondary font-label-md">/month</span>
+                </div>
+                <ul className="space-y-4 mb-8 flex-grow">
+                  <li className="flex items-center gap-3 text-on-surface">
+                    <span className="material-symbols-outlined text-emerald-600 text-xl">check_circle</span>
+                    Up to 5 Clients
+                  </li>
+                  <li className="flex items-center gap-3 text-on-surface">
+                    <span className="material-symbols-outlined text-emerald-600 text-xl">check_circle</span>
+                    1 Staff Member
+                  </li>
+                  <li className="flex items-center gap-3 text-on-surface">
+                    <span className="material-symbols-outlined text-emerald-600 text-xl">check_circle</span>
+                    Basic Task Tracking
+                  </li>
+                </ul>
+                <Link href="/login" className="block w-full py-3 px-4 border-2 border-primary text-primary font-bold rounded-xl text-center hover:bg-primary-container transition-colors">
+                  Get Started Free
+                </Link>
+              </div>
+
+              {/* Pro Plan */}
+              <div className="p-8 bg-[#FF5722] text-white border border-outline-variant rounded-2xl flex flex-col relative transform md:-translate-y-4 shadow-xl">
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
+                  Most Popular
+                </div>
+                <h3 className="font-headline-md text-white mb-2">Pro</h3>
+                <div className="mb-6">
+                  <span className="text-4xl font-bold">₹1,999</span>
+                  <span className="text-white/80 font-label-md">/month</span>
+                </div>
+                <ul className="space-y-4 mb-8 flex-grow">
+                  <li className="flex items-center gap-3">
+                    <span className="material-symbols-outlined text-white text-xl">check_circle</span>
+                    Up to 50 Clients
+                  </li>
+                  <li className="flex items-center gap-3">
+                    <span className="material-symbols-outlined text-white text-xl">check_circle</span>
+                    3 Staff Members
+                  </li>
+                  <li className="flex items-center gap-3">
+                    <span className="material-symbols-outlined text-white text-xl">check_circle</span>
+                    Automated Reminders
+                  </li>
+                  <li className="flex items-center gap-3">
+                    <span className="material-symbols-outlined text-white text-xl">check_circle</span>
+                    Document Management
+                  </li>
+                </ul>
+                <Link href="/login" className="block w-full py-3 px-4 bg-white text-[#FF5722] font-bold rounded-xl text-center hover:bg-gray-100 transition-colors">
+                  Start 14-Day Trial
+                </Link>
+              </div>
+
+              {/* Enterprise Plan */}
+              <div className="p-8 bg-white border border-outline-variant rounded-2xl flex flex-col hover:shadow-lg transition-shadow">
+                <h3 className="font-headline-md text-primary mb-2">Enterprise</h3>
+                <div className="mb-6">
+                  <span className="text-4xl font-bold text-black">₹4,999</span>
+                  <span className="text-secondary font-label-md">/month</span>
+                </div>
+                <ul className="space-y-4 mb-8 flex-grow">
+                  <li className="flex items-center gap-3 text-on-surface">
+                    <span className="material-symbols-outlined text-emerald-600 text-xl">check_circle</span>
+                    Unlimited Clients
+                  </li>
+                  <li className="flex items-center gap-3 text-on-surface">
+                    <span className="material-symbols-outlined text-emerald-600 text-xl">check_circle</span>
+                    Unlimited Staff
+                  </li>
+                  <li className="flex items-center gap-3 text-on-surface">
+                    <span className="material-symbols-outlined text-emerald-600 text-xl">check_circle</span>
+                    Custom Branding
+                  </li>
+                  <li className="flex items-center gap-3 text-on-surface">
+                    <span className="material-symbols-outlined text-emerald-600 text-xl">check_circle</span>
+                    Priority Support
+                  </li>
+                </ul>
+                <button onClick={() => alert('Opening contact form...')} className="block w-full py-3 px-4 border-2 border-outline text-on-surface font-bold rounded-xl text-center hover:bg-surface-container transition-colors">
+                  Contact Sales
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* Final CTA Section */}
-        <section id="pricing" className="py-24 px-8 bg-[#FF5722] relative overflow-hidden">
+        <section className="py-24 px-8 bg-black relative overflow-hidden">
           <div className="max-w-4xl mx-auto text-center relative z-10 space-y-6">
             <h2 className="text-4xl md:text-5xl font-bold text-white">Ready to Scale Your Practice?</h2>
-            <p className="text-white/90 text-xl max-w-2xl mx-auto mb-10">
-              Start your 14-day free trial. No credit card required. Unlimited features for 3 users.
+            <p className="text-white/70 text-xl max-w-2xl mx-auto mb-10">
+              Start your 14-day free trial. No credit card required. Cancel anytime.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/login" className="bg-black text-white px-10 py-5 rounded-xl font-headline-lg text-headline-lg hover:scale-105 transition-transform flex items-center justify-center">
+              <Link href="/login" className="bg-[#FF5722] text-white px-10 py-5 rounded-xl font-headline-lg text-headline-lg hover:bg-[#e64a19] transition-colors flex items-center justify-center">
                 Get Started Free
               </Link>
               <button onClick={() => alert('Opening schedule calendar...')} className="bg-white/10 backdrop-blur-md text-white border border-white/20 px-10 py-5 rounded-xl font-headline-lg text-headline-lg hover:bg-white/20 transition-all cursor-pointer">

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import Link from "next/link";
+import { getFirmId } from "@/lib/auth-utils";
 
 type SearchParams = Promise<{ q?: string }>;
 
@@ -9,14 +10,17 @@ const toText = (value: string | number | null | undefined) => {
 };
 
 export default async function DashboardSearchPage({ searchParams }: { searchParams: SearchParams }) {
+  const firmId = await getFirmId();
+  if (!firmId) return null;
+
   const { q } = await searchParams;
   const query = (q || "").trim().toLowerCase();
 
   const [clients, assignments, invoices, users] = await Promise.all([
-    prisma.client.findMany({ orderBy: { createdAt: "desc" } }),
-    prisma.assignment.findMany({ include: { client: true, user: true }, orderBy: { deadline: "asc" } }),
-    prisma.invoice.findMany({ include: { client: true }, orderBy: { dueDate: "desc" } }),
-    prisma.user.findMany({ include: { assignments: true }, orderBy: { name: "asc" } }),
+    prisma.client.findMany({ where: { firmId }, orderBy: { createdAt: "desc" } }),
+    prisma.assignment.findMany({ where: { firmId }, include: { client: true, user: true }, orderBy: { deadline: "asc" } }),
+    prisma.invoice.findMany({ where: { firmId }, include: { client: true }, orderBy: { dueDate: "desc" } }),
+    prisma.user.findMany({ where: { firmId }, include: { assignments: true }, orderBy: { name: "asc" } }),
   ]);
 
   const clientResults = clients.filter((client) =>

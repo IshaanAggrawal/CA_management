@@ -13,6 +13,13 @@ export async function createSupportTicket(formData: {
   description: string;
 }, userId?: string | null) {
   try {
+    const { getFirmId } = await import("@/lib/auth-utils");
+    const firmId = await getFirmId();
+
+    if (!firmId) {
+      throw new Error("User does not belong to a firm");
+    }
+
     // 1. Save to DB
     const ticket = await prisma.supportTicket.create({
       data: {
@@ -20,6 +27,7 @@ export async function createSupportTicket(formData: {
         category: formData.category,
         priority: formData.priority,
         description: formData.description,
+        firmId,
         ...(userId && { userId }),
       },
     });
@@ -31,6 +39,7 @@ export async function createSupportTicket(formData: {
       subject: `[${ticket.priority}] Support Request: ${ticket.subject}`,
       html: `
         <h2>New Support Ticket: #${ticket.id}</h2>
+        <p><strong>Firm ID:</strong> ${firmId}</p>
         <p><strong>Category:</strong> ${ticket.category}</p>
         <p><strong>Priority:</strong> ${ticket.priority}</p>
         <p><strong>User ID:</strong> ${userId || "Guest"}</p>

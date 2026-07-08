@@ -3,10 +3,14 @@
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { currentUser } from "@clerk/nextjs/server";
+import { getFirmId } from "@/lib/auth-utils";
 
 export async function createInvoice(formData: FormData) {
   const user = await currentUser();
   if (!user) throw new Error("Unauthorized");
+
+  const firmId = await getFirmId();
+  if (!firmId) throw new Error("Unauthorized: User does not belong to a firm");
 
   const amountStr = formData.get("amount");
   const dueDateStr = formData.get("dueDate");
@@ -28,6 +32,7 @@ export async function createInvoice(formData: FormData) {
       dueDate,
       clientId,
       status: "PENDING",
+      firmId
     },
   });
 
@@ -37,7 +42,8 @@ export async function createInvoice(formData: FormData) {
       entityType: "INVOICE",
       entityId: invoice.id,
       details: `Created invoice for amount ${amount}`,
-      userId: user.id
+      userId: user.id,
+      firmId
     }
   });
 
@@ -51,7 +57,10 @@ export async function deleteInvoice(id: string) {
   // Basic RBAC: only ADMIN can delete
   if (user.publicMetadata?.role === "STAFF") throw new Error("Unauthorized");
 
-  const invoice = await prisma.invoice.findUnique({ where: { id } });
+  const firmId = await getFirmId();
+  if (!firmId) throw new Error("Unauthorized: User does not belong to a firm");
+
+  const invoice = await prisma.invoice.findUnique({ where: { id, firmId } });
   if (invoice) {
     await prisma.invoice.delete({ where: { id } });
     await prisma.activityLog.create({
@@ -60,7 +69,8 @@ export async function deleteInvoice(id: string) {
         entityType: "INVOICE",
         entityId: id,
         details: `Deleted invoice for amount ${invoice.amount}`,
-        userId: user.id
+        userId: user.id,
+        firmId
       }
     });
   }
@@ -72,7 +82,10 @@ export async function updateInvoiceStatus(id: string, status: "PENDING" | "PAID"
   const user = await currentUser();
   if (!user) throw new Error("Unauthorized");
 
-  const oldInvoice = await prisma.invoice.findUnique({ where: { id } });
+  const firmId = await getFirmId();
+  if (!firmId) throw new Error("Unauthorized: User does not belong to a firm");
+
+  const oldInvoice = await prisma.invoice.findUnique({ where: { id, firmId } });
   if (!oldInvoice) throw new Error("Invoice not found");
 
   await prisma.invoice.update({
@@ -86,7 +99,8 @@ export async function updateInvoiceStatus(id: string, status: "PENDING" | "PAID"
       entityType: "INVOICE",
       entityId: id,
       details: `Status changed from ${oldInvoice.status} to ${status}`,
-      userId: user.id
+      userId: user.id,
+      firmId
     }
   });
   revalidatePath("/dashboard/billing");

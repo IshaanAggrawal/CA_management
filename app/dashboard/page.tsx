@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/db";
 import DashboardClient from "./DashboardClient";
 
+import { getFirmId } from "@/lib/auth-utils";
+
 type DashboardDeadlineRecord = {
   id: string;
   title: string;
@@ -10,13 +12,18 @@ type DashboardDeadlineRecord = {
 };
 
 export default async function DashboardPage() {
+  const firmId = await getFirmId();
+  if (!firmId) return null; // Let middleware or layout handle redirect
+
   const recentAssignments = await prisma.assignment.findMany({
+    where: { firmId },
     include: { client: true, user: true },
     orderBy: { id: "desc" },
     take: 5
   });
 
   const allAssignments = await prisma.assignment.findMany({
+    where: { firmId },
     select: {
       id: true,
       title: true,
@@ -29,6 +36,7 @@ export default async function DashboardPage() {
 
   const upcomingDeadlines = await prisma.assignment.findMany({
     where: {
+      firmId,
       deadline: {
         gte: new Date(),
         lte: new Date(new Date().getTime() + 7 * 24 * 60 * 60 * 1000)
@@ -48,9 +56,9 @@ export default async function DashboardPage() {
       client: assignment.client ? { name: assignment.client.name } : null,
     }));
 
-  const totalAssignments = await prisma.assignment.count();
+  const totalAssignments = await prisma.assignment.count({ where: { firmId } });
   const activeAssignments = await prisma.assignment.count({
-    where: { status: { not: "COMPLETED" } }
+    where: { firmId, status: { not: "COMPLETED" } }
   });
 
   // NEW METRICS
@@ -59,7 +67,7 @@ export default async function DashboardPage() {
   const staffWorkloadRaw = await prisma.assignment.groupBy({
     by: ['userId'],
     _count: { id: true },
-    where: { status: { not: "COMPLETED" }, userId: { not: null } }
+    where: { firmId, status: { not: "COMPLETED" }, userId: { not: null } }
   });
   
   // Need to get names for the userIds
@@ -74,6 +82,7 @@ export default async function DashboardPage() {
 
   // Billing and Growth
   const allInvoices = await prisma.invoice.findMany({
+    where: { firmId },
     select: { amount: true, createdAt: true, status: true }
   });
   
@@ -93,10 +102,10 @@ export default async function DashboardPage() {
     .reduce((sum, inv) => sum + toAmountNumber(inv.amount), 0);
 
   const newClientsThisMonth = await prisma.client.count({
-    where: { createdAt: { gte: currentMonthStart } }
+    where: { firmId, createdAt: { gte: currentMonthStart } }
   });
   const newClientsLastMonth = await prisma.client.count({
-    where: { createdAt: { gte: previousMonthStart, lt: currentMonthStart } }
+    where: { firmId, createdAt: { gte: previousMonthStart, lt: currentMonthStart } }
   });
 
   return (

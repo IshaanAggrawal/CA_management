@@ -49,12 +49,50 @@ enum DocumentDirection {
   INTERNAL
 }
 
+enum PlanTier {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  UNPAID
+  INCOMPLETE
+}
+
+model Firm {
+  id                     String             @id @default(cuid())
+  name                   String
+  planTier               PlanTier           @default(FREE)
+  razorpayCustomerId     String?
+  razorpaySubscriptionId String?
+  subscriptionStatus     SubscriptionStatus?
+  currentPeriodEnd       DateTime?
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+
+  users             User[]
+  clients           Client[]
+  assignments       Assignment[]
+  invoices          Invoice[]
+  documents         Document[]
+  digitalSignatures DigitalSignature[]
+  udins             Udin[]
+  activityLogs      ActivityLog[]
+  supportTickets    SupportTicket[]
+}
+
 model User {
   id         String        @id // Maps to Clerk User ID
   email      String        @unique
   name       String
   jobTitle   String?       // E.g., "Senior Partner", "Manager", "Associate"
   role       UserRole      @default(STAFF)
+  firmId     String?       // Nullable for migration, but enforced in app logic
+  firm       Firm?         @relation(fields: [firmId], references: [id])
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @default(now()) @updatedAt
   
@@ -62,6 +100,8 @@ model User {
   activityLogs ActivityLog[]
   documents   Document[]
   supportTickets SupportTicket[]
+
+  @@index([firmId])
 }
 
 model Client {
@@ -76,6 +116,8 @@ model Client {
   email      String?
   phone      String?
   status     ClientStatus  @default(ACTIVE)
+  firmId     String?
+  firm       Firm?         @relation(fields: [firmId], references: [id])
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @default(now()) @updatedAt
 
@@ -84,6 +126,8 @@ model Client {
   documents   Document[]
   digitalSignatures DigitalSignature[]
   udins       Udin[]
+
+  @@index([firmId])
 }
 
 model Assignment {
@@ -93,6 +137,8 @@ model Assignment {
   status      AssignmentStatus    @default(TODO)
   priority    AssignmentPriority  @default(MEDIUM)
   deadline    DateTime?
+  firmId      String?
+  firm        Firm?              @relation(fields: [firmId], references: [id])
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
   
@@ -102,6 +148,7 @@ model Assignment {
   user        User?              @relation(fields: [userId], references: [id])
   udins       Udin[]
 
+  @@index([firmId])
   @@index([clientId])
   @@index([userId])
   @@index([status])
@@ -115,12 +162,15 @@ model Invoice {
   dueDate        DateTime
   paymentLinkId  String?
   paymentLinkUrl String?
+  firmId         String?
+  firm           Firm?         @relation(fields: [firmId], references: [id])
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
   
   clientId       String
   client         Client        @relation(fields: [clientId], references: [id])
 
+  @@index([firmId])
   @@index([clientId])
   @@index([status])
   @@index([dueDate])
@@ -132,10 +182,14 @@ model ActivityLog {
   entityType  String     // e.g. "ASSIGNMENT", "CLIENT"
   entityId    String
   details     String?    // e.g. "Status changed from TODO to IN_PROGRESS"
+  firmId      String?
+  firm        Firm?      @relation(fields: [firmId], references: [id])
   createdAt   DateTime   @default(now())
   
   userId      String?
   user        User?      @relation(fields: [userId], references: [id])
+
+  @@index([firmId])
 }
 
 model Document {
@@ -144,6 +198,8 @@ model Document {
   url         String
   size        Int?              // in bytes
   direction   DocumentDirection @default(INTERNAL)
+  firmId      String?
+  firm        Firm?             @relation(fields: [firmId], references: [id])
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
   
@@ -151,6 +207,8 @@ model Document {
   client      Client            @relation(fields: [clientId], references: [id])
   userId      String?
   user        User?             @relation(fields: [userId], references: [id])
+
+  @@index([firmId])
 }
 
 enum TicketStatus {
@@ -173,11 +231,15 @@ model SupportTicket {
   priority    TicketPriority @default(LOW)
   status      TicketStatus   @default(OPEN)
   attachmentUrl String?
+  firmId      String?
+  firm        Firm?          @relation(fields: [firmId], references: [id])
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
   userId      String?
   user        User?          @relation(fields: [userId], references: [id])
+
+  @@index([firmId])
 }
 
 enum DscStatus {
@@ -193,11 +255,15 @@ model DigitalSignature {
   issueDate    DateTime?
   expiryDate   DateTime
   status       DscStatus @default(ACTIVE)
+  firmId       String?
+  firm         Firm?     @relation(fields: [firmId], references: [id])
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
   clientId     String
   client       Client    @relation(fields: [clientId], references: [id])
+
+  @@index([firmId])
 }
 
 model Udin {
@@ -205,6 +271,8 @@ model Udin {
   udinNumber   String    @unique
   documentType String
   generatedAt  DateTime
+  firmId       String?
+  firm         Firm?     @relation(fields: [firmId], references: [id])
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
@@ -212,4 +280,6 @@ model Udin {
   client       Client    @relation(fields: [clientId], references: [id])
   assignmentId String?
   assignment   Assignment? @relation(fields: [assignmentId], references: [id])
+
+  @@index([firmId])
 }

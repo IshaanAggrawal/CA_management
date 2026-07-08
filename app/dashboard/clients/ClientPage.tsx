@@ -47,6 +47,7 @@ export default function ClientsDirectoryClient({ initialClients }: ClientsDirect
   const [isLoadingAI, setIsLoadingAI] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
 
   const partnerOptions = Array.from(new Set(initialClients.map((client) => client.partnerName).filter(Boolean))) as string[];
   const cityOptions = Array.from(new Set(initialClients.map((client) => client.city).filter(Boolean))) as string[];
@@ -358,10 +359,45 @@ export default function ClientsDirectoryClient({ initialClients }: ClientsDirect
                         {client.status.replace("_", " ")}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-right">
-                      <button className="text-slate-400 hover:text-slate-600 transition-colors">
+                    <td className="px-6 py-4 text-right relative">
+                      <button 
+                        onClick={() => setOpenDropdownId(openDropdownId === client.id ? null : client.id)}
+                        className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer p-1 rounded-md"
+                      >
                         <span className="material-symbols-outlined text-lg">more_vert</span>
                       </button>
+                      
+                      {openDropdownId === client.id && (
+                        <>
+                          <div 
+                            className="fixed inset-0 z-10"
+                            onClick={() => setOpenDropdownId(null)}
+                          />
+                          <div className="absolute right-6 top-10 z-20 w-40 bg-white border border-slate-200 rounded-lg shadow-lg py-1 animate-in fade-in zoom-in-95">
+                            <button 
+                              onClick={() => {
+                                setOpenDropdownId(null);
+                                alert("View details coming soon!");
+                              }}
+                              className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 cursor-pointer"
+                            >
+                              View Details
+                            </button>
+                            <button 
+                              onClick={() => {
+                                setOpenDropdownId(null);
+                                if(confirm(`Delete ${client.name}?`)) {
+                                  setSelectedIds([client.id]);
+                                  handleBulkDelete();
+                                }
+                              }}
+                              className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 cursor-pointer"
+                            >
+                              Delete Client
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </td>
                   </tr>
                 ))

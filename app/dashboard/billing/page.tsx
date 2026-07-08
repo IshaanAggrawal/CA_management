@@ -1,5 +1,8 @@
 import { prisma } from "@/lib/db";
 import BillingClient from "./BillingClient";
+import { getFirmId } from "@/lib/auth-utils";
+import { redirect } from "next/navigation";
+import { verifyInvoicePayment } from "@/lib/actions/razorpay-actions";
 
 type PrismaDecimalLike = { toNumber: () => number };
 
@@ -18,8 +21,23 @@ type BillingInvoiceRecord = {
 const toAmountNumber = (amount: number | PrismaDecimalLike) =>
   typeof amount === "number" ? amount : amount.toNumber();
 
-export default async function BillingPage() {
+export default async function BillingPage({ 
+  searchParams 
+}: { 
+  searchParams: { [key: string]: string | string[] | undefined } 
+}) {
+  const firmId = await getFirmId();
+  if (!firmId) return null;
+
+  const params = await searchParams;
+  const paymentLinkId = params?.razorpay_payment_link_id as string | undefined;
+  if (paymentLinkId) {
+    await verifyInvoicePayment(paymentLinkId);
+    redirect("/dashboard/billing");
+  }
+
   const rawInvoices = await prisma.invoice.findMany({
+    where: { firmId },
     include: { client: true },
     orderBy: { dueDate: "desc" }
   }) as BillingInvoiceRecord[];
@@ -64,6 +82,7 @@ export default async function BillingPage() {
   const collectionRate = totalBilled > 0 ? (totalCollected / totalBilled) * 100 : 0;
 
   const clients = await prisma.client.findMany({
+    where: { firmId },
     select: { id: true, name: true },
     orderBy: { name: "asc" }
   });
