@@ -8,7 +8,7 @@ export default async function DocumentsPage() {
   if (!user) redirect("/");
   const currentUserRole = user.publicMetadata?.role as string || "STAFF";
 
-  const [documents, clients] = await Promise.all([
+  const [documents, clients, dscs, udins] = await Promise.all([
     prisma.document.findMany({
       include: {
         client: true,
@@ -18,8 +18,23 @@ export default async function DocumentsPage() {
     }),
     prisma.client.findMany({
       orderBy: { name: "asc" }
+    }),
+    prisma.digitalSignature.findMany({
+      include: { client: true },
+      orderBy: { expiryDate: "asc" }
+    }),
+    prisma.udin.findMany({
+      include: { client: true, assignment: true },
+      orderBy: { generatedAt: "desc" }
     })
   ]);
 
-  return <DocumentsClient documents={documents} clients={clients} currentUserRole={currentUserRole} currentUserId={user.id} />;
+  return <DocumentsClient 
+    documents={documents} 
+    clients={clients} 
+    dscs={dscs}
+    udins={udins}
+    currentUserRole={currentUserRole} 
+    currentUserId={user.id} 
+  />;
 }

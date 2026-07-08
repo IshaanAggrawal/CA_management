@@ -17,6 +17,7 @@ export default function DashboardSidebar({ role = "STAFF" }: { role?: "ADMIN" | 
     { href: "/dashboard/calendar", label: "Calendar", icon: "calendar_today" },
     { href: "/dashboard/billing", label: "Billing", icon: "payments" },
     { href: "/dashboard/documents", label: "Documents", icon: "description" },
+    { href: "/dashboard/calculators", label: "Calculators", icon: "calculate" },
     ...(role === "ADMIN" ? [{ href: "/dashboard/staff", label: "Staff", icon: "badge" }] : []),
   ];
 

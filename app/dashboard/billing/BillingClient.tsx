@@ -8,6 +8,7 @@ type BillingInvoice = {
   amount: number;
   status: "PENDING" | "PAID" | "OVERDUE";
   dueDate: string | Date;
+  paymentLinkUrl?: string | null;
   client: {
     name: string;
   };
@@ -52,6 +53,20 @@ export default function BillingClient({ invoices = [], metrics, clients = [] }: 
       await deleteInvoice(id);
     } catch (e: any) {
       alert(e.message || "Failed to delete");
+    } finally {
+      setIsUpdatingId(null);
+    }
+  };
+
+  const handleGenerateLink = async (id: string) => {
+    setIsUpdatingId(id);
+    try {
+      // Lazy load to prevent client errors if razorpay is huge
+      const { generatePaymentLink } = await import("@/lib/actions/razorpay-actions");
+      const url = await generatePaymentLink(id);
+      window.open(url, "_blank");
+    } catch (e: any) {
+      alert(e.message || "Failed to generate link");
     } finally {
       setIsUpdatingId(null);
     }
@@ -227,9 +242,14 @@ export default function BillingClient({ invoices = [], metrics, clients = [] }: 
                         ) : (
                           <>
                             {invoice.status !== "PAID" && (
-                              <button onClick={() => handleMarkAsPaid(invoice.id)} className="p-1.5 text-primary hover:bg-primary-container rounded-md transition-colors cursor-pointer" title="Mark as Paid">
-                                <span className="material-symbols-outlined text-[20px]">task_alt</span>
-                              </button>
+                              <>
+                                <button onClick={() => invoice.paymentLinkUrl ? window.open(invoice.paymentLinkUrl, "_blank") : handleGenerateLink(invoice.id)} className={`p-1.5 rounded-md transition-colors cursor-pointer ${invoice.paymentLinkUrl ? "text-primary hover:bg-primary-container" : "text-secondary hover:bg-secondary-container"}`} title={invoice.paymentLinkUrl ? "Open Payment Link" : "Generate Razorpay Link"}>
+                                  <span className="material-symbols-outlined text-[20px]">{invoice.paymentLinkUrl ? "open_in_new" : "link"}</span>
+                                </button>
+                                <button onClick={() => handleMarkAsPaid(invoice.id)} className="p-1.5 text-primary hover:bg-primary-container rounded-md transition-colors cursor-pointer" title="Mark as Paid">
+                                  <span className="material-symbols-outlined text-[20px]">task_alt</span>
+                                </button>
+                              </>
                             )}
                             <button onClick={() => handleDelete(invoice.id)} className="p-1.5 text-error hover:bg-error-container rounded-md transition-colors cursor-pointer" title="Delete Invoice">
                               <span className="material-symbols-outlined text-[20px]">delete</span>

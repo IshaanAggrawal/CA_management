@@ -10,6 +10,7 @@ export async function uploadDocument(formData: FormData) {
 
   const name = formData.get("name") as string;
   const clientId = formData.get("clientId") as string;
+  const direction = (formData.get("direction") as any) || "INTERNAL";
   const file = formData.get("file") as File;
 
   if (!name || !clientId || !file) {
@@ -26,6 +27,7 @@ export async function uploadDocument(formData: FormData) {
       name,
       url,
       size,
+      direction,
       clientId,
       userId: user.id
     }
@@ -67,5 +69,68 @@ export async function deleteDocument(id: string) {
   });
 
   await prisma.document.delete({ where: { id } });
+  revalidatePath("/dashboard/documents");
+}
+
+export async function createDsc(formData: FormData) {
+  const user = await currentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const providerName = formData.get("providerName") as string;
+  const password = formData.get("password") as string;
+  const clientId = formData.get("clientId") as string;
+  const issueDate = formData.get("issueDate") as string;
+  const expiryDate = formData.get("expiryDate") as string;
+
+  if (!providerName || !clientId || !expiryDate) {
+    throw new Error("Missing required fields");
+  }
+
+  await prisma.digitalSignature.create({
+    data: {
+      providerName,
+      password: password || null,
+      clientId,
+      issueDate: issueDate ? new Date(issueDate) : null,
+      expiryDate: new Date(expiryDate),
+    }
+  });
+
+  revalidatePath("/dashboard/documents");
+}
+
+export async function deleteDsc(id: string) {
+  await prisma.digitalSignature.delete({ where: { id } });
+  revalidatePath("/dashboard/documents");
+}
+
+export async function createUdin(formData: FormData) {
+  const user = await currentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const udinNumber = formData.get("udinNumber") as string;
+  const documentType = formData.get("documentType") as string;
+  const clientId = formData.get("clientId") as string;
+  const assignmentId = formData.get("assignmentId") as string;
+
+  if (!udinNumber || !documentType || !clientId) {
+    throw new Error("Missing required fields");
+  }
+
+  await prisma.udin.create({
+    data: {
+      udinNumber,
+      documentType,
+      generatedAt: new Date(),
+      clientId,
+      assignmentId: assignmentId || null,
+    }
+  });
+
+  revalidatePath("/dashboard/documents");
+}
+
+export async function deleteUdin(id: string) {
+  await prisma.udin.delete({ where: { id } });
   revalidatePath("/dashboard/documents");
 }

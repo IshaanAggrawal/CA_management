@@ -8,6 +8,7 @@ type BillingInvoiceRecord = {
   amount: number | PrismaDecimalLike;
   status: "PENDING" | "PAID" | "OVERDUE";
   dueDate: Date;
+  paymentLinkUrl?: string | null;
   client: {
     id: string;
     name: string;
@@ -28,6 +29,7 @@ export default async function BillingPage() {
     amount: toAmountNumber(invoice.amount),
     status: invoice.status,
     dueDate: invoice.dueDate,
+    paymentLinkUrl: invoice.paymentLinkUrl,
     client: {
       id: invoice.client.id,
       name: invoice.client.name,
