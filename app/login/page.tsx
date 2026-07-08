@@ -29,7 +29,10 @@ export default function LoginPage() {
           href="/"
           className="absolute top-8 left-8 flex items-center gap-2 bg-white/95 shadow-md px-5 py-2.5 rounded-full border border-slate-100 hover:bg-white transition-all cursor-pointer transform hover:-translate-y-0.5"
         >
-          <span className="text-2xl font-bold text-[#A03B1E]">CAPractice</span>
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-[#A03B1E] text-3xl">assured_workload</span>
+            <span className="text-2xl font-bold text-[#A03B1E]">ProAudit</span>
+          </div>
         </Link>
       </section>
 

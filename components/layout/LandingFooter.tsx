@@ -5,7 +5,10 @@ export default function LandingFooter() {
     <footer className="w-full bg-white border-t border-slate-100 py-12">
       <div className="max-w-7xl mx-auto px-6 md:px-12 flex flex-col md:flex-row items-center justify-between gap-8">
         <div className="text-center md:text-left space-y-2">
-          <div className="font-headline-lg text-xl font-bold text-[#A03B1E]">CAPractice</div>
+          <div className="font-headline-lg text-xl font-bold text-[#A03B1E] flex items-center gap-2">
+            <span className="material-symbols-outlined">assured_workload</span>
+            ProAudit
+          </div>
           <p className="text-sm text-slate-400 font-medium">The gold standard in CA practice management.</p>
         </div>
         

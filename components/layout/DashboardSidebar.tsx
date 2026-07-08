@@ -39,9 +39,12 @@ export default function DashboardSidebar({ role = "STAFF" }: { role?: "ADMIN" | 
 
   return (
     <aside className="w-[260px] h-full fixed left-0 top-0 bg-primary dark:bg-primary-container flex flex-col p-4 overflow-y-auto border-r border-outline-variant dark:border-outline z-50">
-      <div className="mb-6 px-2">
-        <h1 className="font-headline-sm text-headline-sm text-on-primary font-bold">ProAudit CA</h1>
-        <p className="font-body-md text-body-md text-on-primary-container">Practice Management</p>
+      <div className="mb-6 px-2 flex items-center gap-2">
+        <span className="material-symbols-outlined text-on-primary text-3xl">assured_workload</span>
+        <div>
+          <h1 className="font-headline-sm text-headline-sm text-on-primary font-bold">ProAudit</h1>
+          <p className="font-body-md text-body-md text-on-primary-container leading-none">Practice Management</p>
+        </div>
       </div>
       
       <button onClick={() => setIsQuickAddOpen(true)} className="mb-6 flex items-center justify-center gap-2 bg-on-tertiary-container text-on-tertiary py-3 px-4 rounded-xl font-bold transition-transform active:scale-95 cursor-pointer hover:bg-opacity-90">

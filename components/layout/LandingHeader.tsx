@@ -26,7 +26,8 @@ export default function LandingHeader() {
     <header className="w-full top-0 sticky z-50 bg-white/90 backdrop-blur-md border-b border-slate-100 shadow-sm">
       <nav className="flex justify-between items-center max-w-7xl mx-auto px-6 md:px-12 py-4">
         <Link href="/" className="font-headline-lg text-2xl font-bold text-[#A03B1E] flex items-center gap-2">
-          CAPractice
+          <span className="material-symbols-outlined text-3xl">assured_workload</span>
+          ProAudit
         </Link>
         <div className="hidden md:flex gap-8 items-center">
           <Link className={getLinkClass("")} href="/" onClick={() => setActiveHash("")}>
